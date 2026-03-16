@@ -92,6 +92,12 @@
       "description": "Frontend & fullstack development with live preview. Use when the user wants to build a web page, frontend app, fullstack project, or any web UI — including React, Vue, Vite, static HTML, Express, FastAPI, or any framework that produces a browser-viewable result. Also use when the user wants to deploy, publish, or share a preview to the public internet (community publish)."
     },
     {
+      "name": "sc-vpn",
+      "path": "sc-vpn/SKILL.md",
+      "version": "1.0.0",
+      "description": "Route outbound HTTP traffic through SC-VPN Gateway for geo-restricted access. Use when a script or request is blocked by region restrictions and needs to appear from a specific country. Do NOT set global proxy — use per-request proxy only."
+    },
+    {
       "name": "script-generator",
       "path": "script-generator/SKILL.md",
       "version": "1.0.0",
