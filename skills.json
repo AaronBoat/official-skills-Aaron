@@ -82,8 +82,8 @@
     {
       "name": "polymarket",
       "path": "polymarket/SKILL.md",
-      "version": "1.0.0",
-      "description": "Browse and analyze Polymarket prediction markets. Use when the user asks about prediction markets, event probabilities, political odds, or wants market sentiment on real-world events."
+      "version": "2.0.0",
+      "description": "Install Polymarket CLI (official Rust binary)"
     },
     {
       "name": "preview-dev",
