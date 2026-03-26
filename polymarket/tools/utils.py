@@ -31,7 +31,7 @@ def _load_env():
     """Load environment variables from .env file"""
     env = {}
     try:
-        env_path = os.path.join(os.getcwd(), ".env")
+        env_path = "/data/workspace/.env"
         if os.path.exists(env_path):
             with open(env_path) as f:
                 for line in f:
