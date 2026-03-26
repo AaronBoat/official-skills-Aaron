@@ -68,6 +68,12 @@
       "description": "DeBank blockchain data API - user portfolios, token balances, transaction history, and DeFi protocol positions"
     },
     {
+      "name": "defillama",
+      "path": "defillama/SKILL.md",
+      "version": "2.1.1",
+      "description": "DefiLlama API integration for DeFi analytics - TVL, stablecoin yields, vault/APY ranking, protocol revenue, fees, DEX volume, chain flows, bridges, and treasury data. Best for DeFi research, stablecoin farming, yield strategy screening, and protocol/chain market intelligence."
+    },
+    {
       "name": "hyperliquid",
       "path": "hyperliquid/SKILL.md",
       "version": "1.0.0",
