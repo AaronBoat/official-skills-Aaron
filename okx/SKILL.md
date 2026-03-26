@@ -5,7 +5,7 @@ description: OKX OnChainOS - Complete on-chain operations suite with 11 speciali
 metadata:
   starchild:
     emoji: "⛓️"
-    skillKey: okx-onchainos
+    skillKey: okx
     requires:
       bins:
         - npx

@@ -1,5 +1,5 @@
 ---
-name: "Polymarket"
+name: "polymarket"
 version: 2.3.0
 description: Place real bets on Polymarket prediction markets using the agent wallet. Buy/sell outcome tokens, check balances, manage orders. Requires USDC on Polygon and wallet policy allowing EIP-712 signing. 🚀 Optimized workflow + auto VPN detection!
 author: starchild
