@@ -1,7 +1,7 @@
 ---
 name: wallet
-version: 1.0.0
-description: Multi-chain wallet operations - balance, transfers, signing, and transaction history via Privy Server Wallets (EVM + Solana)
+version: 1.1.0
+description: Multi-chain wallet operations - balance, transfers, signing, policy management, and transaction history via Privy Server Wallets (EVM + Solana)
 tools:
   - wallet_info
   - wallet_transfer
@@ -16,6 +16,7 @@ tools:
   - wallet_sol_sign
   - wallet_sol_balance
   - wallet_sol_transactions
+  - wallet_get_policy
   - wallet_propose_policy
 
 metadata:
@@ -35,7 +36,7 @@ Interact with this agent's on-chain wallets. Each agent has one wallet per chain
 
 Authentication is automatic via Fly OIDC token — no API keys or wallet addresses needed. Wallets are bound to this machine at deploy time.
 
-## Available Tools (13)
+## Available Tools (14)
 
 ### Multi-Chain Tools
 
@@ -43,6 +44,7 @@ Authentication is automatic via Fly OIDC token — no API keys or wallet address
 |------|-------------|
 | `wallet_info` | Get all wallet addresses and chain types |
 | `wallet_get_all_balances` | **PRIMARY TOOL** - Get complete portfolio across ALL chains (EVM + Solana) with USD values |
+| `wallet_get_policy` | Get current policy status (enabled/disabled) and rules for a chain |
 
 ### EVM Tools
 
@@ -156,7 +158,7 @@ wallet_transfer(to="0xContractAddress", amount="0", data="0xa9059cbb000000...", 
 - `nonce`: Transaction nonce (decimal string). Optional — auto-determined if omitted.
 - `tx_type`: Transaction type integer. `0`=legacy, `1`=EIP-2930, `2`=EIP-1559, `4`=EIP-7702. Optional.
 
-**Policy enforcement**: Transfers are gated by Privy TEE policy. The target address must be on the whitelist and the amount must be within daily limits. Policy violations return an error.
+**Policy enforcement**: If a policy is enabled, transfers are gated by Privy TEE policy rules. Policy violations return an error. If no policy is attached (default), all transfers are allowed.
 
 ### EVM — Sign Transaction (without broadcasting)
 
@@ -231,7 +233,7 @@ wallet_sol_transfer(transaction="<base64-encoded-transaction>", caip2="solana:Et
 - `transaction`: Base64-encoded serialized Solana transaction
 - `caip2`: CAIP-2 chain identifier (default: `"solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp"` for mainnet, use `"solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1"` for devnet)
 
-**Policy enforcement**: Same as EVM — transfers are gated by Privy TEE policy.
+**Policy enforcement**: Same as EVM — if a policy is enabled, transfers are gated by Privy TEE policy rules.
 
 ### Solana — Sign Transaction (without broadcasting)
 
@@ -326,10 +328,11 @@ Formula: `wei = eth_amount * 10^18`
 - **Privy TEE enforced**: Even if the agent is compromised, transfers that violate policy are rejected at the Privy TEE layer
 - **Per-wallet policy**: Each chain's wallet has its own independent policy
 - **Flexible rules**: Policy rules are configured via Privy's rule system (address allowlists, value limits, method restrictions, etc.)
-- **Deny-all default**: New wallets have no allowed transfers until policy is configured by the user via the backend
+- **Allow-all default**: New wallets have NO policy — all transactions are allowed. Policy is opt-in.
+- **Once enabled**: Policy switches to deny-by-default — only transactions matching ALLOW rules are permitted
 - **Pass-through**: Policy rules are managed directly via Privy (source of truth), no local cache
 
-Policy is managed by the user through the main backend API, not by the agent.
+Policy is optional and managed by the user through the frontend. The agent can propose policy rules via `wallet_propose_policy`, but the user must approve before they take effect.
 
 ## Error Handling
 
