@@ -1,6 +1,6 @@
 ---
 name: wallet-policy
-version: 1.0.0
+version: 1.1.0
 description: "Generate Privy wallet policy rules from natural language. Use when the user wants to set up, modify, or review wallet security policies — transfer limits, address allowlists, method restrictions, time windows, etc."
 
 metadata:
@@ -60,7 +60,7 @@ If the user's request covers **both** EVM and Solana, call `wallet_propose_polic
 
 Tell the user these fundamentals when relevant:
 
-1. **Default DENY** — Any request that matches no rules is denied. An empty rules array = deny everything.
+1. **Default allow-all** — New wallets have NO policy (all transactions allowed). Policy is opt-in. Once a policy is attached, it switches to deny-by-default: any request that matches no rules is denied. An empty rules array = deny everything.
 2. **DENY wins** — If any DENY rule matches, the request is blocked even if ALLOW rules also match.
 3. **Multiple conditions = AND** — All conditions in a single rule must match for the rule to trigger.
 4. **Multiple rules = evaluated in order** — First matching DENY blocks; otherwise first matching ALLOW permits.
