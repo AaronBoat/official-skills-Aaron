@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+.coverage
+.pytest_cache/
+htmlcov/
+
+# Local dev artifacts
+fork-workspace/
+repo/
+reports/
+*.log
+test_results*.json
+test_results.log
+test_patches*.json
+iterate_state.json
+create_pr.py
+scripts/
+
+# Env
+.env
+*.env
