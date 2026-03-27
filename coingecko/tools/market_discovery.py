@@ -14,7 +14,7 @@ from typing import Dict, Any
 from core.http_client import proxied_get
 
 try:
-    from .utils import search_coin_by_name
+    from .utils import search_coin_by_name  # noqa: F401
 except ImportError:
     pass
 
