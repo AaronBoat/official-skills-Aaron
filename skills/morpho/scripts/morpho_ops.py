@@ -48,8 +48,8 @@ def list_vaults(chain_id: int = 1, limit: int = 10):
     result = gql_query(query, {"chainIds": [chain_id], "first": limit})
     vaults = result.get("data", {}).get("vaults", {}).get("items", [])
     for v in vaults:
-        state = v.get("state", {})
-        asset = v.get("asset", {})
+        state = v.get("state") or {}
+        asset = v.get("asset") or {}
         meta = v.get("metadata") or {}
         curators = meta.get("curators") or []
         curator_name = curators[0]["name"] if curators else "Unknown"
@@ -87,9 +87,9 @@ def list_markets(chain_id: int = 1, limit: int = 10):
     result = gql_query(query, {"chainIds": [chain_id], "first": limit})
     markets = result.get("data", {}).get("markets", {}).get("items", [])
     for m in markets:
-        state = m.get("state", {})
-        loan = m.get("loanAsset", {})
-        collateral = m.get("collateralAsset", {})
+        state = m.get("state") or {}
+        loan = m.get("loanAsset") or {}
+        collateral = m.get("collateralAsset") or {}
         supply_usd = float(state.get("supplyAssetsUsd", 0))
         borrow_usd = float(state.get("borrowAssetsUsd", 0))
         util = float(state.get("utilization", 0)) * 100
@@ -125,10 +125,10 @@ def get_positions(user_address: str, chain_id: int = 1):
         print(f"  No vault positions found for {user_address} on chain {chain_id}")
         return positions
     for p in positions:
-        vault = p.get("vault", {})
-        asset = vault.get("asset", {})
+        vault = p.get("vault") or {}
+        asset = vault.get("asset") or {}
         apy = float(vault.get("state", {}).get("netApy", 0)) * 100
-        pos_state = p.get("state", {})
+        pos_state = p.get("state") or {}
         usd = float(pos_state.get("assetsUsd", 0))
         print(f"  {vault.get('name', '?')}")
         print(f"    Deposited: ${usd:,.2f} {asset.get('symbol', '')}")
