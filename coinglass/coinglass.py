@@ -123,7 +123,7 @@ Examples:
             return ToolResult(
                 success=False,
                 output=None,
-                error="Coinglass tools not available. Check if /tools/coinglass exists."
+                error="Coinglass tools not available."
             )
 
         try:
@@ -136,12 +136,12 @@ Examples:
                 return ToolResult(
                     success=False,
                     output=None,
-                    error="Failed to fetch funding rates. Check COINGLASS_API_KEY."
+                    error="No data returned. Check parameters (symbol, exchange, interval)."
                 )
 
             return ToolResult(success=True, output=result)
         except Exception as e:
-            return ToolResult(success=False, output=None, error=str(e))
+            return ToolResult(success=False, output=None, error=f"Coinglass: {e}")
 
 
 class LongShortRatioTool(BaseTool):
@@ -206,12 +206,12 @@ Examples:
                 return ToolResult(
                     success=False,
                     output=None,
-                    error="Failed to fetch long/short ratio. Check COINGLASS_API_KEY."
+                    error="No data returned. Check parameters (symbol, exchange, interval)."
                 )
 
             return ToolResult(success=True, output=result)
         except Exception as e:
-            return ToolResult(success=False, output=None, error=str(e))
+            return ToolResult(success=False, output=None, error=f"Coinglass: {e}")
 
 
 # ==================== Advanced Long/Short Ratio Tools ====================
@@ -253,10 +253,10 @@ Examples:
         try:
             result = await asyncio.to_thread(get_global_account_ratio, symbol, exchange, interval, limit)
             if result is None:
-                return ToolResult(success=False, output=None, error="Failed to fetch global account ratio. Check COINGLASS_API_KEY.")
+                return ToolResult(success=False, output=None, error="No data returned. Check parameters (symbol, exchange, interval).")
             return ToolResult(success=True, output=result)
         except Exception as e:
-            return ToolResult(success=False, output=None, error=str(e))
+            return ToolResult(success=False, output=None, error=f"Coinglass: {e}")
 
 
 class TopAccountRatioTool(BaseTool):
@@ -296,10 +296,10 @@ Examples:
         try:
             result = await asyncio.to_thread(get_top_account_ratio, symbol, exchange, interval, limit)
             if result is None:
-                return ToolResult(success=False, output=None, error="Failed to fetch top account ratio. Check COINGLASS_API_KEY.")
+                return ToolResult(success=False, output=None, error="No data returned. Check parameters (symbol, exchange, interval).")
             return ToolResult(success=True, output=result)
         except Exception as e:
-            return ToolResult(success=False, output=None, error=str(e))
+            return ToolResult(success=False, output=None, error=f"Coinglass: {e}")
 
 
 class TopPositionRatioTool(BaseTool):
@@ -339,10 +339,10 @@ Examples:
         try:
             result = await asyncio.to_thread(get_top_position_ratio, symbol, exchange, interval, limit)
             if result is None:
-                return ToolResult(success=False, output=None, error="Failed to fetch top position ratio. Check COINGLASS_API_KEY.")
+                return ToolResult(success=False, output=None, error="No data returned. Check parameters (symbol, exchange, interval).")
             return ToolResult(success=True, output=result)
         except Exception as e:
-            return ToolResult(success=False, output=None, error=str(e))
+            return ToolResult(success=False, output=None, error=f"Coinglass: {e}")
 
 
 class TakerBuySellExchangesTool(BaseTool):
@@ -380,10 +380,10 @@ Examples:
         try:
             result = await asyncio.to_thread(get_taker_buysell_exchanges, symbol, range)
             if result is None:
-                return ToolResult(success=False, output=None, error="Failed to fetch taker exchanges. Check COINGLASS_API_KEY.")
+                return ToolResult(success=False, output=None, error="No data returned. Check parameters (symbol, exchange, interval).")
             return ToolResult(success=True, output=result)
         except Exception as e:
-            return ToolResult(success=False, output=None, error=str(e))
+            return ToolResult(success=False, output=None, error=f"Coinglass: {e}")
 
 
 class NetPositionTool(BaseTool):
@@ -424,10 +424,10 @@ Examples:
         try:
             result = await asyncio.to_thread(get_net_position, symbol, exchange, interval, limit)
             if result is None:
-                return ToolResult(success=False, output=None, error="Failed to fetch net position. Check COINGLASS_API_KEY.")
+                return ToolResult(success=False, output=None, error="No data returned. Check parameters (symbol, exchange, interval).")
             return ToolResult(success=True, output=result)
         except Exception as e:
-            return ToolResult(success=False, output=None, error=str(e))
+            return ToolResult(success=False, output=None, error=f"Coinglass: {e}")
 
 
 # ==================== Open Interest Tools ====================
@@ -486,12 +486,12 @@ Examples:
                 return ToolResult(
                     success=False,
                     output=None,
-                    error="Failed to fetch open interest. Check COINGLASS_API_KEY."
+                    error="No data returned. Check parameters (symbol, exchange, interval)."
                 )
 
             return ToolResult(success=True, output=result)
         except Exception as e:
-            return ToolResult(success=False, output=None, error=str(e))
+            return ToolResult(success=False, output=None, error=f"Coinglass: {e}")
 
 
 # ==================== Liquidation Tools ====================
@@ -555,12 +555,12 @@ Examples:
                 return ToolResult(
                     success=False,
                     output=None,
-                    error="Failed to fetch liquidations. Check COINGLASS_API_KEY."
+                    error="No data returned. Check parameters (symbol, exchange, interval)."
                 )
 
             return ToolResult(success=True, output=result)
         except Exception as e:
-            return ToolResult(success=False, output=None, error=str(e))
+            return ToolResult(success=False, output=None, error=f"Coinglass: {e}")
 
 
 class LiquidationAnalysisTool(BaseTool):
@@ -620,12 +620,12 @@ Examples:
                 return ToolResult(
                     success=False,
                     output=None,
-                    error="Failed to fetch liquidation analysis. Check COINGLASS_API_KEY."
+                    error="No data returned. Check parameters (symbol, exchange, interval)."
                 )
 
             return ToolResult(success=True, output=result)
         except Exception as e:
-            return ToolResult(success=False, output=None, error=str(e))
+            return ToolResult(success=False, output=None, error=f"Coinglass: {e}")
 
 
 # ==================== Advanced Liquidation Tools ====================
@@ -670,10 +670,10 @@ Examples:
         try:
             result = await asyncio.to_thread(get_coin_liquidation_history, symbol, exchange_list, interval, limit, start_time, end_time)
             if result is None:
-                return ToolResult(success=False, output=None, error="Failed to fetch coin liquidation history. Check COINGLASS_API_KEY.")
+                return ToolResult(success=False, output=None, error="No data returned. Check parameters (symbol, exchange, interval).")
             return ToolResult(success=True, output=result)
         except Exception as e:
-            return ToolResult(success=False, output=None, error=str(e))
+            return ToolResult(success=False, output=None, error=f"Coinglass: {e}")
 
 
 class PairLiquidationHistoryTool(BaseTool):
@@ -716,10 +716,10 @@ Examples:
         try:
             result = await asyncio.to_thread(get_pair_liquidation_history, symbol, exchange, interval, limit, start_time, end_time)
             if result is None:
-                return ToolResult(success=False, output=None, error="Failed to fetch pair liquidation history. Check COINGLASS_API_KEY.")
+                return ToolResult(success=False, output=None, error="No data returned. Check parameters (symbol, exchange, interval).")
             return ToolResult(success=True, output=result)
         except Exception as e:
-            return ToolResult(success=False, output=None, error=str(e))
+            return ToolResult(success=False, output=None, error=f"Coinglass: {e}")
 
 
 class LiquidationCoinListTool(BaseTool):
@@ -756,10 +756,10 @@ Examples:
         try:
             result = await asyncio.to_thread(get_liquidation_coin_list, exchange)
             if result is None:
-                return ToolResult(success=False, output=None, error="Failed to fetch liquidation coin list. Check COINGLASS_API_KEY.")
+                return ToolResult(success=False, output=None, error="No data returned. Check parameters (symbol, exchange, interval).")
             return ToolResult(success=True, output=result)
         except Exception as e:
-            return ToolResult(success=False, output=None, error=str(e))
+            return ToolResult(success=False, output=None, error=f"Coinglass: {e}")
 
 
 class LiquidationOrdersTool(BaseTool):
@@ -801,10 +801,10 @@ Examples:
         try:
             result = await asyncio.to_thread(get_liquidation_orders, symbol, exchange, min_liquidation_amount, start_time, end_time)
             if result is None:
-                return ToolResult(success=False, output=None, error="Failed to fetch liquidation orders. Check COINGLASS_API_KEY.")
+                return ToolResult(success=False, output=None, error="No data returned. Check parameters (symbol, exchange, interval).")
             return ToolResult(success=True, output=result)
         except Exception as e:
-            return ToolResult(success=False, output=None, error=str(e))
+            return ToolResult(success=False, output=None, error=f"Coinglass: {e}")
 
 
 # ==================== Futures Market Data Tools (V4 API) ====================
@@ -841,10 +841,10 @@ Examples:
         try:
             result = await asyncio.to_thread(get_supported_coins)
             if result is None:
-                return ToolResult(success=False, output=None, error="Failed to fetch supported coins. Check COINGLASS_API_KEY.")
+                return ToolResult(success=False, output=None, error="No data returned. Check parameters (symbol, exchange, interval).")
             return ToolResult(success=True, output=result)
         except Exception as e:
-            return ToolResult(success=False, output=None, error=str(e))
+            return ToolResult(success=False, output=None, error=f"Coinglass: {e}")
 
 
 class SupportedExchangesTool(BaseTool):
@@ -874,10 +874,10 @@ Examples:
         try:
             result = await asyncio.to_thread(get_supported_exchanges)
             if result is None:
-                return ToolResult(success=False, output=None, error="Failed to fetch supported exchanges. Check COINGLASS_API_KEY.")
+                return ToolResult(success=False, output=None, error="No data returned. Check parameters (symbol, exchange, interval).")
             return ToolResult(success=True, output=result)
         except Exception as e:
-            return ToolResult(success=False, output=None, error=str(e))
+            return ToolResult(success=False, output=None, error=f"Coinglass: {e}")
 
 
 class CoinsMarketDataTool(BaseTool):
@@ -909,10 +909,10 @@ Examples:
         try:
             result = await asyncio.to_thread(get_coins_data)
             if result is None:
-                return ToolResult(success=False, output=None, error="Failed to fetch coins market data. Check COINGLASS_API_KEY.")
+                return ToolResult(success=False, output=None, error="No data returned. Check parameters (symbol, exchange, interval).")
             return ToolResult(success=True, output=result)
         except Exception as e:
-            return ToolResult(success=False, output=None, error=str(e))
+            return ToolResult(success=False, output=None, error=f"Coinglass: {e}")
 
 
 class PairMarketDataTool(BaseTool):
@@ -950,10 +950,10 @@ Examples:
         try:
             result = await asyncio.to_thread(get_pair_data, symbol, exchange)
             if result is None:
-                return ToolResult(success=False, output=None, error="Failed to fetch pair market data. Check COINGLASS_API_KEY.")
+                return ToolResult(success=False, output=None, error="No data returned. Check parameters (symbol, exchange, interval).")
             return ToolResult(success=True, output=result)
         except Exception as e:
-            return ToolResult(success=False, output=None, error=str(e))
+            return ToolResult(success=False, output=None, error=f"Coinglass: {e}")
 
 
 class OHLCHistoryTool(BaseTool):
@@ -993,10 +993,10 @@ Examples:
         try:
             result = await asyncio.to_thread(get_ohlc_history, symbol, exchange, interval, limit)
             if result is None:
-                return ToolResult(success=False, output=None, error="Failed to fetch OHLC history. Check COINGLASS_API_KEY.")
+                return ToolResult(success=False, output=None, error="No data returned. Check parameters (symbol, exchange, interval).")
             return ToolResult(success=True, output=result)
         except Exception as e:
-            return ToolResult(success=False, output=None, error=str(e))
+            return ToolResult(success=False, output=None, error=f"Coinglass: {e}")
 
 
 # ==================== Hyperliquid Tools ====================
@@ -1028,10 +1028,10 @@ Examples:
         try:
             result = await asyncio.to_thread(get_whale_alerts)
             if result is None:
-                return ToolResult(success=False, output=None, error="Failed to fetch whale alerts. Check COINGLASS_API_KEY.")
+                return ToolResult(success=False, output=None, error="No data returned. Check parameters (symbol, exchange, interval).")
             return ToolResult(success=True, output=result)
         except Exception as e:
-            return ToolResult(success=False, output=None, error=str(e))
+            return ToolResult(success=False, output=None, error=f"Coinglass: {e}")
 
 
 class HyperliquidWhalePositionsTool(BaseTool):
@@ -1061,10 +1061,10 @@ Examples:
         try:
             result = await asyncio.to_thread(get_whale_positions)
             if result is None:
-                return ToolResult(success=False, output=None, error="Failed to fetch whale positions. Check COINGLASS_API_KEY.")
+                return ToolResult(success=False, output=None, error="No data returned. Check parameters (symbol, exchange, interval).")
             return ToolResult(success=True, output=result)
         except Exception as e:
-            return ToolResult(success=False, output=None, error=str(e))
+            return ToolResult(success=False, output=None, error=f"Coinglass: {e}")
 
 
 class HyperliquidPositionsByCoinTool(BaseTool):
@@ -1101,10 +1101,10 @@ Examples:
         try:
             result = await asyncio.to_thread(get_positions_by_coin, symbol)
             if result is None:
-                return ToolResult(success=False, output=None, error="Failed to fetch positions by coin. Check COINGLASS_API_KEY.")
+                return ToolResult(success=False, output=None, error="No data returned. Check parameters (symbol, exchange, interval).")
             return ToolResult(success=True, output=result)
         except Exception as e:
-            return ToolResult(success=False, output=None, error=str(e))
+            return ToolResult(success=False, output=None, error=f"Coinglass: {e}")
 
 
 class HyperliquidPositionDistributionTool(BaseTool):
@@ -1134,10 +1134,10 @@ Examples:
         try:
             result = await asyncio.to_thread(get_position_distribution)
             if result is None:
-                return ToolResult(success=False, output=None, error="Failed to fetch position distribution. Check COINGLASS_API_KEY.")
+                return ToolResult(success=False, output=None, error="No data returned. Check parameters (symbol, exchange, interval).")
             return ToolResult(success=True, output=result)
         except Exception as e:
-            return ToolResult(success=False, output=None, error=str(e))
+            return ToolResult(success=False, output=None, error=f"Coinglass: {e}")
 
 # ==================== Volume & Flow Tools ====================
 
@@ -1183,10 +1183,10 @@ Examples:
         try:
             result = await asyncio.to_thread(get_taker_volume_history, symbol, exchange, interval, limit, start_time, end_time)
             if result is None:
-                return ToolResult(success=False, output=None, error="Failed to fetch taker volume history. Check COINGLASS_API_KEY.")
+                return ToolResult(success=False, output=None, error="No data returned. Check parameters (symbol, exchange, interval).")
             return ToolResult(success=True, output=result)
         except Exception as e:
-            return ToolResult(success=False, output=None, error=str(e))
+            return ToolResult(success=False, output=None, error=f"Coinglass: {e}")
 
 
 class AggregatedTakerVolumeTool(BaseTool):
@@ -1230,10 +1230,10 @@ Examples:
         try:
             result = await asyncio.to_thread(get_aggregated_taker_volume, symbol, exchange_list, interval, limit, start_time, end_time)
             if result is None:
-                return ToolResult(success=False, output=None, error="Failed to fetch aggregated taker volume. Check COINGLASS_API_KEY.")
+                return ToolResult(success=False, output=None, error="No data returned. Check parameters (symbol, exchange, interval).")
             return ToolResult(success=True, output=result)
         except Exception as e:
-            return ToolResult(success=False, output=None, error=str(e))
+            return ToolResult(success=False, output=None, error=f"Coinglass: {e}")
 
 
 class CumulativeVolumeDeltaTool(BaseTool):
@@ -1279,10 +1279,10 @@ Examples:
         try:
             result = await asyncio.to_thread(get_cumulative_volume_delta, symbol, exchange, interval, limit, start_time, end_time)
             if result is None:
-                return ToolResult(success=False, output=None, error="Failed to fetch CVD. Check COINGLASS_API_KEY.")
+                return ToolResult(success=False, output=None, error="No data returned. Check parameters (symbol, exchange, interval).")
             return ToolResult(success=True, output=result)
         except Exception as e:
-            return ToolResult(success=False, output=None, error=str(e))
+            return ToolResult(success=False, output=None, error=f"Coinglass: {e}")
 
 
 class CoinNetflowTool(BaseTool):
@@ -1316,10 +1316,10 @@ Examples:
         try:
             result = await asyncio.to_thread(get_coin_netflow)
             if result is None:
-                return ToolResult(success=False, output=None, error="Failed to fetch coin netflow. Check COINGLASS_API_KEY.")
+                return ToolResult(success=False, output=None, error="No data returned. Check parameters (symbol, exchange, interval).")
             return ToolResult(success=True, output=result)
         except Exception as e:
-            return ToolResult(success=False, output=None, error=str(e))
+            return ToolResult(success=False, output=None, error=f"Coinglass: {e}")
 
 
 # ==================== Whale Transfer Tools ====================
@@ -1359,10 +1359,10 @@ Examples:
         try:
             result = await asyncio.to_thread(get_whale_transfers)
             if result is None:
-                return ToolResult(success=False, output=None, error="Failed to fetch whale transfers. Check COINGLASS_API_KEY.")
+                return ToolResult(success=False, output=None, error="No data returned. Check parameters (symbol, exchange, interval).")
             return ToolResult(success=True, output=result)
         except Exception as e:
-            return ToolResult(success=False, output=None, error=str(e))
+            return ToolResult(success=False, output=None, error=f"Coinglass: {e}")
 
 
 # ==================== Bitcoin ETF Tools ====================
@@ -1396,10 +1396,10 @@ Examples:
         try:
             result = await asyncio.to_thread(get_btc_etf_flows)
             if result is None:
-                return ToolResult(success=False, output=None, error="Failed to fetch BTC ETF flows. Check COINGLASS_API_KEY.")
+                return ToolResult(success=False, output=None, error="No data returned. Check parameters (symbol, exchange, interval).")
             return ToolResult(success=True, output=result)
         except Exception as e:
-            return ToolResult(success=False, output=None, error=str(e))
+            return ToolResult(success=False, output=None, error=f"Coinglass: {e}")
 
 
 class BTCETFPremiumDiscountTool(BaseTool):
@@ -1431,10 +1431,10 @@ Examples:
         try:
             result = await asyncio.to_thread(get_btc_etf_premium_discount)
             if result is None:
-                return ToolResult(success=False, output=None, error="Failed to fetch BTC ETF premium/discount. Check COINGLASS_API_KEY.")
+                return ToolResult(success=False, output=None, error="No data returned. Check parameters (symbol, exchange, interval).")
             return ToolResult(success=True, output=result)
         except Exception as e:
-            return ToolResult(success=False, output=None, error=str(e))
+            return ToolResult(success=False, output=None, error=f"Coinglass: {e}")
 
 
 class BTCETFHistoryTool(BaseTool):
@@ -1471,10 +1471,10 @@ Examples:
         try:
             result = await asyncio.to_thread(get_btc_etf_history, ticker)
             if result is None:
-                return ToolResult(success=False, output=None, error="Failed to fetch BTC ETF history. Check COINGLASS_API_KEY.")
+                return ToolResult(success=False, output=None, error="No data returned. Check parameters (symbol, exchange, interval).")
             return ToolResult(success=True, output=result)
         except Exception as e:
-            return ToolResult(success=False, output=None, error=str(e))
+            return ToolResult(success=False, output=None, error=f"Coinglass: {e}")
 
 
 class BTCETFListTool(BaseTool):
@@ -1504,10 +1504,10 @@ Examples:
         try:
             result = await asyncio.to_thread(get_btc_etf_list)
             if result is None:
-                return ToolResult(success=False, output=None, error="Failed to fetch BTC ETF list. Check COINGLASS_API_KEY.")
+                return ToolResult(success=False, output=None, error="No data returned. Check parameters (symbol, exchange, interval).")
             return ToolResult(success=True, output=result)
         except Exception as e:
-            return ToolResult(success=False, output=None, error=str(e))
+            return ToolResult(success=False, output=None, error=f"Coinglass: {e}")
 
 
 class HKBTCETFFlowsTool(BaseTool):
@@ -1538,10 +1538,10 @@ Examples:
         try:
             result = await asyncio.to_thread(get_hk_btc_etf_flows)
             if result is None:
-                return ToolResult(success=False, output=None, error="Failed to fetch HK BTC ETF flows. Check COINGLASS_API_KEY.")
+                return ToolResult(success=False, output=None, error="No data returned. Check parameters (symbol, exchange, interval).")
             return ToolResult(success=True, output=result)
         except Exception as e:
-            return ToolResult(success=False, output=None, error=str(e))
+            return ToolResult(success=False, output=None, error=f"Coinglass: {e}")
 
 
 # ==================== Ethereum & Other ETF Tools ====================
@@ -1573,10 +1573,10 @@ Examples:
         try:
             result = await asyncio.to_thread(get_eth_etf_flows)
             if result is None:
-                return ToolResult(success=False, output=None, error="Failed to fetch ETH ETF flows. Check COINGLASS_API_KEY.")
+                return ToolResult(success=False, output=None, error="No data returned. Check parameters (symbol, exchange, interval).")
             return ToolResult(success=True, output=result)
         except Exception as e:
-            return ToolResult(success=False, output=None, error=str(e))
+            return ToolResult(success=False, output=None, error=f"Coinglass: {e}")
 
 
 class ETHETFListTool(BaseTool):
@@ -1604,10 +1604,10 @@ Examples:
         try:
             result = await asyncio.to_thread(get_eth_etf_list)
             if result is None:
-                return ToolResult(success=False, output=None, error="Failed to fetch ETH ETF list. Check COINGLASS_API_KEY.")
+                return ToolResult(success=False, output=None, error="No data returned. Check parameters (symbol, exchange, interval).")
             return ToolResult(success=True, output=result)
         except Exception as e:
-            return ToolResult(success=False, output=None, error=str(e))
+            return ToolResult(success=False, output=None, error=f"Coinglass: {e}")
 
 
 class SOLETFFlowsTool(BaseTool):
@@ -1635,10 +1635,10 @@ Examples:
         try:
             result = await asyncio.to_thread(get_sol_etf_flows)
             if result is None:
-                return ToolResult(success=False, output=None, error="Failed to fetch SOL ETF flows. Check COINGLASS_API_KEY.")
+                return ToolResult(success=False, output=None, error="No data returned. Check parameters (symbol, exchange, interval).")
             return ToolResult(success=True, output=result)
         except Exception as e:
-            return ToolResult(success=False, output=None, error=str(e))
+            return ToolResult(success=False, output=None, error=f"Coinglass: {e}")
 
 
 class XRPETFFlowsTool(BaseTool):
@@ -1666,9 +1666,9 @@ Examples:
         try:
             result = await asyncio.to_thread(get_xrp_etf_flows)
             if result is None:
-                return ToolResult(success=False, output=None, error="Failed to fetch XRP ETF flows. Check COINGLASS_API_KEY.")
+                return ToolResult(success=False, output=None, error="No data returned. Check parameters (symbol, exchange, interval).")
             return ToolResult(success=True, output=result)
         except Exception as e:
-            return ToolResult(success=False, output=None, error=str(e))
+            return ToolResult(success=False, output=None, error=f"Coinglass: {e}")
 
 
