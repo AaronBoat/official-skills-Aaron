@@ -182,10 +182,10 @@
       "description": "Generate Privy wallet policy rules from natural language. Use when the user wants to set up, modify, or review wallet security policies — transfer limits, address allowlists, method restrictions, time windows, etc."
     },
     {
-      "name": "woofi-bot",
-      "path": "woofi-bot/SKILL.md",
-      "version": "5.0.0",
-      "description": "Complete WOOFi bot — DEX analytics, swap quotes, swap execution — DEX analytics, swap quotes, swap execution with tx generation, pool states, protocol revenue across 16 chains. Updated from woonetwork/woofi-skills v1.1."
+      "name": "woofi-swap",
+      "path": "woofi-swap/SKILL.md",
+      "version": "6.0.0",
+      "description": "Swap any token at the best price. WOOFi is a meta-aggregator that queries WooPP, 1inch, and ODOS simultaneously — returning the globally optimal rate across all three sources. Supports all ERC-20 tokens and native gas tokens (ETH, BNB, AVAX, MATIC, etc.) on 14 EVM chains. Get quotes, build transactions, execute swaps."
     }
   ]
 }
