@@ -60,6 +60,19 @@ Use CoinGecko for:
 - **Global metrics** - Total market cap, dominance, DeFi stats
 - **Categories** - Sector performance (DeFi, Gaming, Layer 1, etc.)
 
+## Tool Selection Guide (READ THIS FIRST)
+
+**Before choosing a tool, match the user's intent:**
+
+| User asks about... | Use this tool | NOT this |
+|---------------------|---------------|----------|
+| Sector/category comparison (L1 vs DeFi, Meme performance) | `cg_categories()` | ❌ `cg_coins_markets` (individual coins, not sectors) |
+| NFT collection ranking, floor prices, NFT market overview | `cg_nfts_list()` | ❌ `cg_coins_markets` (tokens only, no NFT data) |
+| Specific NFT collection details (BAYC, CryptoPunks) | `cg_nft(nft_id=...)` | ❌ `cg_nft_by_contract` (only if you have contract address) |
+| Current coin price | `coin_price()` | ❌ `cg_coins_market_data` (that's coinglass, different skill) |
+| OHLC candle data | `coin_ohlc()` | ❌ `cg_ohlc_history` (that's coinglass, different skill) |
+| Exchange trading pairs | `cg_exchange_tickers()` | ❌ `cg_supported_exchanges` (that's coinglass) |
+
 ## Common Workflows
 
 ### Get Coin Price
@@ -101,7 +114,29 @@ cg_exchange_volume_chart(id="binance", days=7)
 ```
 cg_global()  # Total market stats
 cg_global_defi()  # DeFi specific stats
-cg_categories()  # Sector performance
+```
+
+### Sector / Category Comparison
+**Use `cg_categories()` for ANY question about sector performance, category comparison, or "which sector is doing better".**
+This returns ALL categories (Layer 1, DeFi, Meme, Gaming, etc.) with market cap, 24h change, and top coins — in ONE call.
+Do NOT manually query individual coins with `cg_coins_markets` for category comparison — use `cg_categories()` instead.
+
+⚡ **Efficiency: ONE call is enough.** `cg_categories()` returns all sectors at once. Do NOT call it multiple times or loop through categories individually.
+```
+cg_categories()  # Returns ALL sectors — L1, DeFi, Meme, etc. in one response
+cg_categories(order="market_cap_change_24h_desc")  # Sort by 24h performance
+```
+
+### NFT Data
+**Use `cg_nfts_list()` for NFT rankings, top NFT collections, or NFT market overview.**
+**Use `cg_nft(nft_id="...")` ONLY for deep-dive on a single collection** (description, social links, historical data).
+Do NOT use `cg_coins_markets` for NFT data — it only returns fungible tokens, not NFT collections.
+
+⚡ **Efficiency: `cg_nfts_list()` already includes floor_price, market_cap, and h24_volume for each collection.** For ranking/comparison questions, one call is enough — do NOT call `cg_nft()` or `cg_nft_by_contract()` for each collection individually.
+```
+cg_nfts_list()  # Top NFTs with floor price + volume — one call covers ranking questions
+cg_nfts_list(order="h24_volume_usd_desc")  # Sort by 24h volume
+cg_nft(nft_id="bored-ape-yacht-club")  # Deep-dive only: full details for one collection
 ```
 
 ### Contract Address Queries

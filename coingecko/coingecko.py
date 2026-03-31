@@ -7,7 +7,7 @@ exchanges, NFTs, infrastructure, search, and contract lookups.
 """
 import asyncio
 import logging
-from typing import List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from core.tool import BaseTool, ToolContext, ToolResult
 
@@ -618,13 +618,16 @@ class CoinGeckoCategoriesjTool(BaseTool):
 
     @property
     def description(self) -> str:
-        return """Get coin categories with market data (DeFi, L1, L2, Memes, etc.).
+        return """Get ALL crypto sector/category data with market stats in ONE call.
 
-See sector performance and top coins in each category.
+Returns market_cap, market_cap_change_24h, volume_24h for every sector (DeFi, L1, L2, Memes, AI, Gaming, etc.).
+
+Best for: sector comparison ("DeFi vs L1"), category ranking, sector rotation analysis, "which sector is outperforming".
+NOT for individual coin data — use cg_coins_markets for that.
 
 Examples:
-- Get categories by market cap: cg_categories()
-- Get categories by 24h change: cg_categories(order="market_cap_change_24h_desc")"""
+- Compare all sectors: cg_categories()
+- Sort by 24h performance: cg_categories(order="market_cap_change_24h_desc")"""
 
     @property
     def parameters(self) -> dict:
@@ -1268,13 +1271,14 @@ class CoinGeckoNFTsListTool(BaseTool):
 
     @property
     def description(self) -> str:
-        return """Get all NFT collections with IDs and contract addresses.
+        return """Get NFT collection rankings with market data (floor price, market cap, 24h volume).
 
-NFT discovery.
+Use for: "top NFTs", "NFT rankings", "NFT floor prices", "best NFT collections by volume".
+Supports filtering by asset_platform_id (e.g. "ethereum") for chain-specific results.
 
 Examples:
-- Get top NFTs by market cap: cg_nfts_list()
-- Sort by volume: cg_nfts_list(order="h24_volume_usd_desc")"""
+- Top NFTs by market cap: cg_nfts_list()
+- Sort by 24h volume: cg_nfts_list(order="h24_volume_usd_desc")"""
 
     @property
     def parameters(self) -> dict:
