@@ -9,9 +9,14 @@ import os
 from dotenv import load_dotenv
 import json
 import argparse
-from typing import Dict, Any
+from typing import Dict, Any, Optional, List
 
 from core.http_client import proxied_get
+
+try:
+    from .utils import search_coin_by_name
+except ImportError:
+    from utils import search_coin_by_name
 
 # Load environment variables
 load_dotenv()
@@ -104,7 +109,7 @@ def get_trending() -> Dict[str, Any]:
             "price_change_24h": coin.get("data", {}).get("price_change_percentage_24h", {}).get("usd"),
             "market_cap": coin.get("data", {}).get("market_cap"),
             "total_volume": coin.get("data", {}).get("total_volume"),
-            "sparkline": coin.get("data", {}).get("sparkline")
+            # sparkline removed — saves ~2K tokens per trending coin
         })
 
     # Format NFTs
@@ -238,10 +243,8 @@ def main():
     # Gainers/losers command
     gl_parser = subparsers.add_parser("gainers-losers", help="Get top gainers and losers")
     gl_parser.add_argument("--currency", default="usd")
-    gl_parser.add_argument(
-        "--duration", default="24h",
-        choices=["1h", "24h", "7d", "14d", "30d", "60d", "1y"]
-    )
+    gl_parser.add_argument("--duration", default="24h",
+                          choices=["1h", "24h", "7d", "14d", "30d", "60d", "1y"])
 
     # New coins command
     subparsers.add_parser("new", help="Get newly added coins")
