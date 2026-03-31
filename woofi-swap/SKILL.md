@@ -1,14 +1,15 @@
 ---
-name: "woofi-swap"
+name: woofi-swap
 version: 6.0.0
-description: "Swap any token at the best price. WOOFi is a meta-aggregator that queries WooPP, 1inch, and ODOS simultaneously — returning the globally optimal rate across all three sources. Supports all ERC-20 tokens and native gas tokens (ETH, BNB, AVAX, MATIC, etc.) on 14 EVM chains. Get quotes, build transactions, execute swaps."
-tags: [swap, trade, exchange, convert, token-swap, dex, dex-aggregator, meta-aggregator, megaswap, best-price, optimal-price, quote, price-quote, exchange-rate, multichain, cross-chain, crypto-swap, token-exchange, token-trade, buy, sell, erc20, native-token, defi, liquidity-aggregator, 1inch, odos, woofi]
-author: "woonetwork"
+description: WOOFi Swap — meta-aggregator for best-price token swaps. Queries WooPP, 1inch, and ODOS simultaneously, returns optimal rate. Supports ERC-20 and native tokens on 14 EVM chains.
+tags: [swap, trade, dex, aggregator, best-price, multichain, defi]
+author: starchild
 
 metadata:
   starchild:
     emoji: "🔄"
     skillKey: woofi-swap
+    registry: starchild-official
 
 triggers:
   - "swap"
