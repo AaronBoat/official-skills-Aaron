@@ -112,7 +112,19 @@ curl -s -X POST http://composio-gateway.flycast/api/connect \
 
 Give `connect_url` to the user — they click it to complete OAuth.
 
-### 5. List Available Toolkits
+### 5. Disconnect (Delete) a Connection
+
+```bash
+curl -s -X DELETE http://composio-gateway.flycast/api/connections/{connection_id} \
+  | python3 -m json.tool
+```
+
+**Response:**
+```json
+{"status": "disconnected", "connection_id": "ca_xxx"}
+```
+
+### 6. List Available Toolkits
 
 ```bash
 curl -s http://composio-gateway.flycast/api/toolkits?limit=200 | python3 -m json.tool
