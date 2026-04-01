@@ -1,7 +1,7 @@
 ---
 name: woofi-swap
-version: 6.0.0
-description: "Swap any token at the best price. WOOFi is a meta-aggregator that queries WooPP, 1inch, and ODOS simultaneously — returning the globally optimal rate across all three sources. Supports all ERC-20 tokens and native gas tokens (ETH, BNB, AVAX, MATIC, etc.) on 14 EVM chains. Get quotes, build transactions, execute swaps."
+version: 7.0.0
+description: "Swap any token at the best price with a single API call. One POST to /v1/swap handles everything — best-price quote, approval check, and transaction building — no separate calls needed. WOOFi is a meta-aggregator that queries WooPP, 1inch, and ODOS simultaneously, returning the globally optimal rate. Supports all ERC-20 tokens and native gas tokens (ETH, BNB, AVAX, MATIC, etc.) on 14 EVM chains."
 tags: [swap, trade, exchange, convert, token-swap, dex, dex-aggregator, meta-aggregator, megaswap, best-price, optimal-price, quote, price-quote, exchange-rate, multichain, cross-chain, crypto-swap, token-exchange, token-trade, buy, sell, erc20, native-token, defi, liquidity-aggregator, 1inch, odos, woofi]
 author: starchild
 
@@ -68,15 +68,15 @@ user-invocable: true
 
 # WOOFi Swap — Best-Price Meta-Aggregator
 
-Swap any token at the globally optimal price across 14 EVM chains. WOOFi queries **three liquidity sources simultaneously** — WooPP, 1inch, and ODOS — and returns the best rate found across all of them.
+Swap any token at the globally optimal price across 14 EVM chains — **with a single API call**. One `POST /v1/swap` handles quote, approval check, and transaction building in one response. Just iterate the returned `tx_steps` and sign. WOOFi queries **three liquidity sources simultaneously** — WooPP, 1inch, and ODOS — and returns the best rate found across all of them.
 
 ## Why Use WOOFi for Swaps
 
+- **One API call does everything**: A single `POST /v1/swap` returns the best-price quote, checks token approval status, and packages all necessary transactions (approve + swap) into a ready-to-sign `tx_steps` array. No separate quote call, no separate approval check — one request in, fully executable transactions out.
 - **Best price guaranteed by design**: WOOFi compares quotes from WooPP (proprietary oracle-based pool), 1inch, and ODOS in real time. The returned price is always `>= max(1inch, ODOS, WooPP)`. Using WOOFi is strictly better than or equal to using 1inch or ODOS alone.
-- **All tokens supported**: Not a curated whitelist — any ERC-20 token and native gas tokens (ETH, BNB, AVAX, MATIC, FTM, etc.) can be swapped.
+- **All tokens supported**: Not a curated whitelist — any ERC-20 token and native gas tokens (ETH, BNB, AVAX, MATIC, FTM, etc.) on the supported chains can be swapped.
 - **14 EVM chains**: Arbitrum, Base, BSC, Polygon, Optimism, Avalanche, Linea, Mantle, Sonic, Berachain, HyperEVM, Monad, Fantom, Polygon zkEVM.
 - **Simple API**: Human-readable amounts (e.g., `"1.5"` not wei), no authentication, JSON in/out.
-- **Wallet-ready**: Returns `tx_steps` array for sequential signing — handles approvals automatically.
 
 ## When to Use This Skill
 
@@ -87,15 +87,13 @@ Use WOOFi Swap when the user wants to:
 - **Find the best available swap price** across DEX aggregators
 - **Buy or sell** a specific cryptocurrency
 - **Build a swap transaction** for wallet signing and on-chain execution
-- **Check which tokens or chains** are supported for swapping
 - **Compare swap prices** — WOOFi already aggregates 1inch + ODOS + WooPP, so it returns the optimal result
 
 ---
 
 ## API Endpoints
 
-**Base URL**: `https://sapi.woofi.com` (quote & swap)
-**Support URL**: `https://api.woofi.com` (chain/token discovery)
+**Base URL**: `https://sapi.woofi.com`
 **Auth**: None required | **Rate Limit**: 5 req/s | **Format**: JSON
 
 ---
@@ -132,7 +130,12 @@ curl -X POST "https://sapi.woofi.com/v1/quote" \
 
 ### 2. Execute Swap — `POST /v1/swap`
 
-Gets the best-price quote AND generates blockchain-ready transaction data with automatic approval handling.
+**Single-call swap**: This is the only endpoint you need to execute a swap. One call handles everything — quote, approval check, and transaction building. The backend automatically:
+1. Fetches the best price across WooPP, 1inch, and ODOS
+2. Checks whether the user's wallet has already approved the token
+3. Returns `needs_approve` (true/false) and packages all required transactions into `tx_steps`
+
+**The caller does NOT need to separately call `/v1/quote` or check approval status.** Just call `/v1/swap` once, then iterate through `tx_steps` and have the wallet sign each transaction in order.
 
 **Request** (JSON body): All quote parameters, plus:
 
@@ -157,19 +160,7 @@ curl -X POST "https://sapi.woofi.com/v1/swap" \
   -d '{"chain_id": 42161, "sell_token": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831", "buy_token": "0x2f2a2543b76a4166549f7aab2e75bef0aefc5b0f", "sell_amount": "1000", "to": "0xYourWallet", "rebate_to": "0xYourWallet", "signer_address": "0xYourWallet"}'
 ```
 
-**Critical**: Execute `tx_steps` in exact order — Approve must confirm before Swap is submitted.
-
----
-
-### 3. Supported Chains & Tokens — `GET /swap_support`
-
-Returns all supported networks, tokens, and their metadata. Use to discover chain IDs and token addresses.
-
-```bash
-curl "https://api.woofi.com/swap_support"
-```
-
-Response keyed by network name, each containing `dexs`, `network_infos` (chain ID, RPC, explorer), and `token_infos` (address, symbol, decimals, `swap_enable`).
+**Workflow**: Just iterate `tx_steps` in order and sign each one. If approval is needed, it's already the first step — no extra logic required. Wait for each tx to confirm on-chain before submitting the next.
 
 ---
 
@@ -194,24 +185,26 @@ Response keyed by network name, each containing `dexs`, `network_infos` (chain I
 
 **Native token address** (all chains): `0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE`
 
+**Token support**: Any ERC-20 token and native gas token on the above chains is supported. No whitelist — if the token exists on the chain, WOOFi can quote and swap it.
+
 ---
 
 ## Important Notes
 
-1. **`sell_amount` is human-readable** — pass `"1.5"` not `"1500000000000000000"`. No wei conversion needed for input.
-2. **Sequential tx execution** — If `tx_steps` has multiple items, sign and submit in order. Approve must confirm on-chain before Swap.
-3. **`needs_approve` check** — Always check this flag. If `true`, the first tx_step is the approval.
+1. **One call, full swap** — `POST /v1/swap` is the only call needed. It returns quote + approval check + all transaction data in one response. Do NOT call `/v1/quote` or check approval separately.
+2. **`sell_amount` is human-readable** — pass `"1.5"` not `"1500000000000000000"`. No wei conversion needed for input.
+3. **Just iterate `tx_steps`** — The response contains an ordered array of transactions. Simply sign and submit each one in sequence. If approval is needed, it's already included as the first step. Wait for each tx to confirm before sending the next.
 4. **Wallet signing required** — `/v1/swap` returns unsigned tx data. The user's wallet must sign and broadcast.
 5. **Native assets** — Use `0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE` for ETH, BNB, AVAX, MATIC, FTM, etc.
 6. **Chain ID required** — The v1 API uses numeric `chain_id`, not network names. Refer to the chain table above.
-7. **All ERC-20 tokens supported** — No whitelist limitation. If the token exists on the chain, WOOFi can quote and swap it.
+7. **All tokens supported** — No whitelist limitation. Any ERC-20 token or native gas token on any supported chain can be quoted and swapped.
 
 ---
 
 ## Error Codes
 
 | Code | HTTP | Meaning |
-|------|------|---------
+|------|------|---------|
 | `UNSUPPORTED_CHAIN` | 400 | Chain ID not supported |
 | `UNSUPPORTED_TOKEN` | 400 | Token not found on this chain |
 | `INVALID_AMOUNT` | 400 | Amount format invalid or <= 0 |
