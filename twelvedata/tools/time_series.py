@@ -66,6 +66,10 @@ Returns: Historical OHLCV data with metadata including symbol, exchange, currenc
                     "minimum": 1,
                     "maximum": 5000,
                 },
+                "prepost": {
+                    "type": "boolean",
+                    "description": "Include pre/post-market data when available (US/Cboe Europe, Pro+ only)",
+                },
                 "start_date": {
                     "type": "string",
                     "description": "Start date in YYYY-MM-DD format (optional)",
@@ -86,6 +90,7 @@ Returns: Historical OHLCV data with metadata including symbol, exchange, currenc
         outputsize: int = 30,
         start_date: str = "",
         end_date: str = "",
+        prepost: bool = False,
         **kwargs,
     ) -> ToolResult:
         if not symbol:
@@ -99,6 +104,7 @@ Returns: Historical OHLCV data with metadata including symbol, exchange, currenc
                 outputsize=outputsize,
                 start_date=start_date if start_date else None,
                 end_date=end_date if end_date else None,
+                prepost=prepost,
             )
 
             # Check for API errors
@@ -139,6 +145,7 @@ This is a lightweight endpoint for quick price checks without full quote data.
 
 Parameters:
 - symbol: Stock symbol (AAPL, MSFT) or forex pair (EUR/USD, GBP/JPY)
+- prepost: (optional) Include pre/post-market data when available (US/Cboe Europe, Pro+ only)
 
 Returns: Current price value"""
 
@@ -151,6 +158,10 @@ Returns: Current price value"""
                     "type": "string",
                     "description": "Stock symbol or forex pair",
                 },
+                "prepost": {
+                    "type": "boolean",
+                    "description": "Include pre/post-market data when available (US/Cboe Europe, Pro+ only)",
+                },
             },
             "required": ["symbol"],
         }
@@ -159,6 +170,7 @@ Returns: Current price value"""
         self,
         ctx: ToolContext,
         symbol: str = "",
+        prepost: bool = False,
         **kwargs,
     ) -> ToolResult:
         if not symbol:
@@ -166,7 +178,7 @@ Returns: Current price value"""
 
         try:
             client = _get_client()
-            data = await client.get_price(symbol=symbol)
+            data = await client.get_price(symbol=symbol, prepost=prepost)
 
             if "status" in data and data["status"] == "error":
                 return ToolResult(
@@ -206,6 +218,7 @@ Useful for daily analysis and reports. Returns the closing price for the most re
 Parameters:
 - symbol: Stock symbol (AAPL, MSFT) or forex pair (EUR/USD, GBP/JPY)
 - date: (optional) Specific date in YYYY-MM-DD format (defaults to latest available)
+- prepost: (optional) Include pre/post-market data when available (US/Cboe Europe, Pro+ only)
 
 Returns: EOD price data with close, high, low, open, volume"""
 
@@ -222,6 +235,10 @@ Returns: EOD price data with close, high, low, open, volume"""
                     "type": "string",
                     "description": "Specific date in YYYY-MM-DD format (optional)",
                 },
+                "prepost": {
+                    "type": "boolean",
+                    "description": "Include pre/post-market data when available (US/Cboe Europe, Pro+ only)",
+                },
             },
             "required": ["symbol"],
         }
@@ -231,6 +248,7 @@ Returns: EOD price data with close, high, low, open, volume"""
         ctx: ToolContext,
         symbol: str = "",
         date: str = "",
+        prepost: bool = False,
         **kwargs,
     ) -> ToolResult:
         if not symbol:
@@ -241,6 +259,7 @@ Returns: EOD price data with close, high, low, open, volume"""
             data = await client.get_eod(
                 symbol=symbol,
                 date=date if date else None,
+                prepost=prepost,
             )
 
             if "status" in data and data["status"] == "error":

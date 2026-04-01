@@ -50,11 +50,21 @@ twelvedata_price(symbol="MSFT")  # Microsoft current price
 twelvedata_quote(symbol="TSLA")  # Tesla quote with full details
 ```
 
+### Get Pre/Post-Market Data (US/Cboe Europe, Pro+)
+```
+twelvedata_quote(symbol="AAPL", prepost=true)
+twelvedata_price(symbol="AAPL", prepost=true)
+twelvedata_time_series(symbol="AAPL", interval="1min", prepost=true)
+```
+When available, response may include fields such as `premarket_change`, `premarket_change_percent`, `postmarket_change`, and `postmarket_change_percent`.
+
 ### Get Forex Price
 ```
-twelvedata_quote(symbol="EUR/USD")  # Euro to USD
+twelvedata_quote(symbol="EUR/USD")  # Euro to USD — returns close price (not bid/ask)
 twelvedata_quote(symbol="GBP/JPY")  # British Pound to Japanese Yen
 ```
+
+> **Note on bid/ask**: The `quote` endpoint returns `close` as the current price. There is no separate `bid`/`ask` field. When users ask for bid/ask, report the `close` price as the mid/last price and clarify that bid/ask spread is not available from this endpoint.
 
 ### Historical Data
 ```
@@ -67,6 +77,7 @@ twelvedata_eod(symbol="GOOGL")  # End of day price
 ```
 twelvedata_quote_batch(symbols=["AAPL", "MSFT", "GOOGL", "TSLA"])  # Up to 120 symbols
 twelvedata_price_batch(symbols=["AAPL", "MSFT"])  # Just prices
+twelvedata_quote_batch(symbols=["AAPL", "MSFT"], prepost=true)  # Include pre/post-market when available
 ```
 
 ### Search for Symbols
@@ -94,10 +105,11 @@ Use standard ticker symbols:
 - `AMZN` - Amazon
 
 ### Forex Pairs
-Use slash format:
+Use slash format (`BASE/QUOTE`). **Always use slash notation** — compact forms like `EURUSD` or `USDCNH` are invalid.
 - `EUR/USD` - Euro to US Dollar
 - `GBP/JPY` - British Pound to Japanese Yen
 - `USD/CHF` - US Dollar to Swiss Franc
+- `USD/CNH` - US Dollar to Chinese Yuan Offshore (use `USD/CNH`, **not** `USDCNH`)
 
 ## Intervals
 
@@ -126,6 +138,8 @@ Use slash format:
 - `change` - Price change
 - `percent_change` - Percentage change
 - `timestamp` - Last update time
+- `premarket_change` / `premarket_change_percent` - Pre-market delta (when prepost=true and available)
+- `postmarket_change` / `postmarket_change_percent` - Post-market delta (when prepost=true and available)
 
 ### Time Series Response
 - `datetime` - Timestamp
@@ -139,6 +153,17 @@ Use slash format:
 - **Fundamental data**: Fundamental data tools (income_statement, balance_sheet, etc.) require Grow/Pro+/Ultra/Enterprise tiers and are not included in this skill
 - **Rate limits**: Be mindful of API rate limits. Use batch endpoints for multiple symbols.
 - **Real-time**: Quotes are near real-time (typically 15-minute delay for free tier, real-time for Pro)
+- **Pre/Post market**: Use `prepost=true` on `quote`, `price`, `time_series`, `eod`, `quote_batch`, `price_batch` to request pre/post-market fields when your plan and symbol support it
+
+## Proxy-Safe Usage (Critical)
+
+Use this order to avoid sc-proxy / fake-key failures:
+
+1. **Agent/CLI calls**: always prefer `twelvedata_*` tools (this skill).
+2. **Platform extension code** (inside `skills/*`, `tools/*`, `extensions/*`): use `core.http_client` helpers (already implemented in `tools/client.py` via `get_aiohttp_proxy_kwargs`).
+3. **Workspace standalone scripts (`bash` Python)**: do **not** call Twelve Data directly with fake key unless you explicitly configure `HTTP_PROXY/HTTPS_PROXY` from `PROXY_HOST/PROXY_PORT`.
+
+If you need market data in scripts, call the skill tools instead of re-implementing HTTP auth/proxy logic.
 
 ## Workflow Examples
 
@@ -150,6 +175,14 @@ Use slash format:
 ### Forex Analysis
 1. Get forex pair: `twelvedata_quote(symbol="EUR/USD")`
 2. Get historical: `twelvedata_time_series(symbol="EUR/USD", interval="1h", outputsize="compact")`
+
+### Forex Comparison (Multiple Pairs)
+Use batch for efficiency when comparing 2+ forex pairs:
+```
+twelvedata_quote_batch(symbols=["EUR/USD", "USD/JPY"])   # Compare two pairs
+twelvedata_quote_batch(symbols=["EUR/USD", "GBP/USD", "AUD/USD"])  # Multi-pair scan
+```
+Report each pair's `close` price and `timestamp`. Note: no bid/ask — use `close` as current mid-price.
 
 ### Portfolio Check
 1. Batch quote: `twelvedata_quote_batch(symbols=["AAPL", "MSFT", "GOOGL", "TSLA"])`

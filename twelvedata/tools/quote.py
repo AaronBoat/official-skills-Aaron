@@ -46,6 +46,7 @@ Use this for current market analysis and live monitoring.
 
 Parameters:
 - symbol: Stock symbol (e.g., AAPL, MSFT, TSLA) or forex pair (e.g., EUR/USD, GBP/JPY)
+- prepost: (optional) Include pre/post-market data when available (US/Cboe Europe, Pro+ only)
 
 Returns: Real-time quote with all current market metrics"""
 
@@ -58,6 +59,10 @@ Returns: Real-time quote with all current market metrics"""
                     "type": "string",
                     "description": "Stock symbol (AAPL, MSFT) or forex pair (EUR/USD, GBP/JPY)",
                 },
+                "prepost": {
+                    "type": "boolean",
+                    "description": "Include pre/post-market data when available (US/Cboe Europe, Pro+ only)",
+                },
             },
             "required": ["symbol"],
         }
@@ -66,6 +71,7 @@ Returns: Real-time quote with all current market metrics"""
         self,
         ctx: ToolContext,
         symbol: str = "",
+        prepost: bool = False,
         **kwargs,
     ) -> ToolResult:
         if not symbol:
@@ -73,7 +79,7 @@ Returns: Real-time quote with all current market metrics"""
 
         try:
             client = _get_client()
-            data = await client.get_quote(symbol=symbol)
+            data = await client.get_quote(symbol=symbol, prepost=prepost)
 
             # Check for API errors
             if "status" in data and data["status"] == "error":
@@ -113,6 +119,7 @@ Efficient way to fetch market data for multiple symbols simultaneously. Maximum 
 
 Parameters:
 - symbols: Array of stock symbols or forex pairs (max 120)
+- prepost: (optional) Include pre/post-market data when available (US/Cboe Europe, Pro+ only)
 
 Returns: Quotes for all requested symbols"""
 
@@ -128,6 +135,10 @@ Returns: Quotes for all requested symbols"""
                     "minItems": 1,
                     "maxItems": 120,
                 },
+                "prepost": {
+                    "type": "boolean",
+                    "description": "Include pre/post-market data when available (US/Cboe Europe, Pro+ only)",
+                },
             },
             "required": ["symbols"],
         }
@@ -136,6 +147,7 @@ Returns: Quotes for all requested symbols"""
         self,
         ctx: ToolContext,
         symbols: List[str] = None,
+        prepost: bool = False,
         **kwargs,
     ) -> ToolResult:
         if not symbols or len(symbols) == 0:
@@ -143,7 +155,7 @@ Returns: Quotes for all requested symbols"""
 
         try:
             client = _get_client()
-            data = await client.get_quote_batch(symbols=symbols)
+            data = await client.get_quote_batch(symbols=symbols, prepost=prepost)
 
             # Check for API errors
             if "status" in data and data["status"] == "error":
@@ -183,6 +195,7 @@ Lightweight endpoint for quick price checks on multiple symbols. Maximum 120 sym
 
 Parameters:
 - symbols: Array of stock symbols or forex pairs (max 120)
+- prepost: (optional) Include pre/post-market data when available (US/Cboe Europe, Pro+ only)
 
 Returns: Current prices for all requested symbols"""
 
@@ -198,6 +211,10 @@ Returns: Current prices for all requested symbols"""
                     "minItems": 1,
                     "maxItems": 120,
                 },
+                "prepost": {
+                    "type": "boolean",
+                    "description": "Include pre/post-market data when available (US/Cboe Europe, Pro+ only)",
+                },
             },
             "required": ["symbols"],
         }
@@ -206,6 +223,7 @@ Returns: Current prices for all requested symbols"""
         self,
         ctx: ToolContext,
         symbols: List[str] = None,
+        prepost: bool = False,
         **kwargs,
     ) -> ToolResult:
         if not symbols or len(symbols) == 0:
@@ -213,7 +231,7 @@ Returns: Current prices for all requested symbols"""
 
         try:
             client = _get_client()
-            data = await client.get_price_batch(symbols=symbols)
+            data = await client.get_price_batch(symbols=symbols, prepost=prepost)
 
             # Check for API errors
             if "status" in data and data["status"] == "error":
