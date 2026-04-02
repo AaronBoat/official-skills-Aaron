@@ -1,0 +1,40 @@
+# Creator Insights Configuration
+# API keys come from environment variables: TWITTER_API_KEY, OPENROUTER_API_KEY
+# All API calls route through sc-proxy for billing/tracking
+
+openrouter:
+  default_model: "openai/gpt-4o-mini"
+  temperature: 0.7
+  max_tokens: 2000
+
+settings:
+  rate_limit: 100
+  default_timeframe: "30d"
+  cache_duration: 15
+  log_level: "INFO"
+
+influence:
+  follower_weight: 0.7
+  engagement_weight: 0.3
+  high_value_threshold: 10000
+  hidden_gem_threshold: 5000
+  min_engagement_interactions: 2
+
+viral:
+  min_engagement: 100
+  min_likes: 500
+  peak_hours:
+    start: 9
+    end: 15
+  high_reply_ratio: 0.25
+  high_retweet_ratio: 0.20
+  viral_coefficient: 0.30
+
+generation:
+  num_variations: 5
+  max_length: 280
+  style_sample_size: 10
+
+privacy:
+  save_history: false
+  history_path: "~/.creator-insights/history"
