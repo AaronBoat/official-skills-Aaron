@@ -62,6 +62,12 @@
       "description": "Universal tool gateway via Composio — connect to 1000+ external apps (Gmail, Slack, GitHub, Google Calendar, Notion, etc.) through the Composio Gateway. Use when the user wants to interact with external SaaS services, send emails, manage calendars, access documents, or any third-party app integration."
     },
     {
+      "name": "creator-insights",
+      "path": "creator-insights/SKILL.md",
+      "version": "1.0.0",
+      "description": "Comprehensive Twitter/X intelligence system providing account analytics, competitive intelligence, thread & follower analysis, viral content patterns, and AI-powered content generation. Uses TwitterAPI.io + OpenRouter to deliver data-driven growth strategies with beautiful ASCII dashboards. Use when creators need performance insights, VIP follower discovery, thread engagement analysis, viral content research, or AI-generated tweet drafting."
+    },
+    {
       "name": "dashboard",
       "path": "dashboard/SKILL.md",
       "version": "1.0.0",
