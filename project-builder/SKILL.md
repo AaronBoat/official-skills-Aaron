@@ -32,6 +32,11 @@ Three phases, always in order: **DESIGN → BUILD → DEBUG**.
 - `localhost-api.md` — Scripts can call the agent via /chat/stream (decide when to think, what context to pass, which model) and push messages via /push
 - `sc-proxy.md` — Transparent proxy, API pricing & rate limits
 
+**Skill references** (in `references/`):
+- `build-patterns.md` — Detailed build recipes per project type
+- `debug-handbook.md` — Systematic diagnosis protocol
+- `dashboard-examples.md` — Code templates for Chart.js, ApexCharts, D3.js, SSE, responsive layouts, dark mode, accessibility (read when building dashboards)
+
 ---
 
 ## Phase 1: DESIGN

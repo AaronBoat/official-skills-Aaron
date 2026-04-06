@@ -185,6 +185,67 @@ What happens when API is down? Empty data? Add graceful fallbacks.
 - Listen on `127.0.0.1` only, never `0.0.0.0`
 - Fullstack = one port: backend serves API + static files
 
+### Visualization Library Selection
+
+```
+Simple charts (line/bar/pie)?  → Chart.js (default choice, lightweight, easy)
+Beautiful real-time dashboard? → ApexCharts (smooth animations, better aesthetics)
+Custom/unique visualizations?  → D3.js (maximum flexibility, steep learning curve)
+Unsure?                        → Chart.js
+```
+
+| Library | CDN | Best for |
+|---------|-----|----------|
+| Chart.js | `cdn.jsdelivr.net/npm/chart.js` | 90% of dashboards, simple and reliable |
+| ApexCharts | `cdn.jsdelivr.net/npm/apexcharts` | Real-time, annotations, beautiful defaults |
+| D3.js | `d3js.org/d3.v7.min.js` | Full creative control, complex data bindling |
+
+### Real-time Data Strategy
+
+```
+Server → client only (metrics, live data)?  → SSE (simpler, auto-reconnects)
+Bidirectional (chat, collaborative)?        → WebSocket
+Simple, low frequency, max compatibility?   → Polling (setInterval + fetch)
+```
+
+- **SSE** is the default for dashboards — simpler than WebSocket, auto-reconnects, works over HTTP/3
+- **Polling** is the fallback when SSE/WebSocket aren't available
+- Always implement fallback: SSE → polling on error
+
+### Error Handling & Loading States
+
+Every dashboard should handle: loading, success, error, and empty states.
+
+```javascript
+// Pattern: fetch with loading/error states
+async function loadData() {
+  showLoading();
+  try {
+    const resp = await fetch('api/data');
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+    if (!data || data.length === 0) {
+      showEmpty("No data available");
+    } else {
+      renderDashboard(data);
+    }
+  } catch (err) {
+    showError(`Failed to load: ${err.message}`);
+  }
+}
+```
+
+### Dashboard Design Quick Reference
+
+- **Visual hierarchy**: critical data top-left → secondary top-right → charts center → tables bottom
+- **Responsive**: mobile-first (320px → 768px → 1024px), use CSS Grid or Flexbox
+- **Dark mode**: use CSS variables + `prefers-color-scheme` media query
+- **Accessibility**: color-blind safe palette, ARIA labels, keyboard nav, min 44×44px touch targets
+- **Performance**: debounce resize, limit data points (`decimateData`), lazy load off-screen charts
+
+**For complete code examples** (Chart.js, ApexCharts, D3.js, SSE/WebSocket/Polling, responsive layouts, dark mode, accessibility patterns, multi-source dashboards, caching):
+→ Read `references/dashboard-examples.md`
+
 ---
 
 ## Pattern C: One-off Script / Tool
