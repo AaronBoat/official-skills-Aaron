@@ -1,6 +1,6 @@
 ---
 name: tokenomist
-version: 1.0.0
+version: 1.0.1
 description: Tokenomist unlock/emission/allocation API skill. Use when users ask token unlock schedules, cliff unlock events, daily emissions, allocation breakdowns, or tokenomics supply pressure analytics.
 tools:
   - tokenomist_token_list

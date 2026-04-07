@@ -1,6 +1,6 @@
 ---
 name: lunarcrush
-version: 1.0.0
+version: 1.0.1
 description: Social intelligence and sentiment data - Galaxy Score, AltRank, social volume, influencer activity
 tools:
   - lunar_coin

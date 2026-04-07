@@ -1,6 +1,6 @@
 ---
 name: taapi
-version: 1.0.0
+version: 1.0.1
 description: Technical analysis indicators - RSI, MACD, Bollinger Bands, and 200+ indicators
 tools:
   - indicator
