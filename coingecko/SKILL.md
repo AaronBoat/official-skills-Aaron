@@ -1,6 +1,6 @@
 ---
 name: coingecko
-version: 1.0.1
+version: 1.0.2
 description: CoinGecko crypto price data, charts, market discovery, and global stats
 tools:
   - coin_price

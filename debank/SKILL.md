@@ -1,6 +1,6 @@
 ---
 name: debank
-version: 1.0.1
+version: 1.0.2
 description: DeBank blockchain data API - user portfolios, token balances, transaction history, and DeFi protocol positions
 tools:
   - db_chain_list

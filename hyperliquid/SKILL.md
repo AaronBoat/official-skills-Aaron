@@ -1,6 +1,6 @@
 ---
 name: hyperliquid
-version: 1.1.0
+version: 1.1.1
 description: Trade perpetual futures and spot on Hyperliquid DEX
 tools:
   - hl_account
