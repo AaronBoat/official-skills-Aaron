@@ -101,16 +101,16 @@ def wallet_sign_typed_data(domain, types, primaryType, message):
     """Sign EIP-712 typed data."""
     return _run(_evm_sign_typed(domain, types, primaryType, message))
 
-def wallet_transactions(chain="ethereum", asset="eth", limit=20):
-    """EVM tx history."""
+def wallet_transactions(chain="ethereum", asset="", limit=20):
+    """EVM tx history. Asset auto-detected from chain if empty."""
     return _run(_evm_txs(chain, asset, limit))
 
 
 # ── Solana ───────────────────────────────────────────────────────────────────
 
-def wallet_sol_transfer(transaction, caip2="solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp"):
-    """Sign and broadcast Solana tx."""
-    return _run(_sol_transfer(transaction, caip2))
+def wallet_sol_transfer(transaction, rpc_url="https://api.mainnet-beta.solana.com"):
+    """Sign and broadcast Solana tx (no gas sponsorship — user pays gas)."""
+    return _run(_sol_transfer(transaction, rpc_url))
 
 def wallet_sol_sign_transaction(transaction):
     """Sign Solana tx without broadcasting."""

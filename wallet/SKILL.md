@@ -1,6 +1,6 @@
 ---
 name: wallet
-version: 3.1.0
+version: 3.1.1
 description: "Multi-chain wallet — balances, transfers, signing, policy (EVM + Solana)"
 author: starchild
 tags: [wallet, evm, solana, transfer, sign, policy, debank, birdeye]
