@@ -66,6 +66,7 @@ Before designing, **read `config/context/references/sc-proxy.md`** for pricing t
 - Pure script tasks (no API): ~0 credits/run
 - LLM-assisted tasks: 0.01-0.05/run (use cheapest model that works)
 - Dashboard auto-refresh costs credits — default to manual refresh unless user asks otherwise
+- **Per-caller limits:** Add `SC-CALLER-ID` header to proxied requests to track and cap usage per task/service. Details in `config/context/references/sc-proxy.md` § Caller Credit Limit
 
 **Data reliability:** Native tools > proxied APIs > direct requests > web scraping > LLM numbers (never).
 **Iron rule: Scripts fetch data. LLMs analyze text. Final output = script variables + LLM prose.**
