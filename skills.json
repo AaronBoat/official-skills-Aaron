@@ -110,6 +110,12 @@
       "description": "Social intelligence and sentiment data - Galaxy Score, AltRank, social volume, influencer activity"
     },
     {
+      "name": "mantle",
+      "path": "mantle/SKILL.md",
+      "version": "1.0.0",
+      "description": "Mantle Network skills suite - 9 specialized skills for onboarding, registry safety, analytics, DeFi planning, and smart contract lifecycle on Mantle"
+    },
+    {
       "name": "okx",
       "path": "okx/SKILL.md",
       "version": "1.0.0",
