@@ -1,7 +1,7 @@
 ---
 name: twitter
-version: 1.2.0
-description: Twitter/X data lookup — search tweets, user profiles, followers, replies. Use when the user asks about Twitter activity, social signals, or wants to look up accounts.
+version: 1.3.0
+description: Twitter/X (x.com) data lookup — fetch tweets by URL or ID, search tweets, user profiles, followers, replies. Use for ANY x.com or twitter.com URL.
 tools:
   - twitter_search_tweets
   - twitter_get_tweets
@@ -37,6 +37,22 @@ Read-only access to Twitter/X via twitterapi.io. Use these tools to look up twee
 > **⛔ NEVER call `lunar_coin`, `lunar_coin_time_series`, or any LunarCrush/CoinGecko tool** — Twitter sentiment 问题只用 `twitter_search_tweets` 回答，不跨 skill。
 > **⛔ NEVER call `coin_price`, `cg_trending`, `cg_coins_markets`** — 价格数据超出 Twitter skill 范围。
 
+## 🔗 URL Handling — x.com / twitter.com
+
+> **⛔ NEVER use `web_fetch` for x.com or twitter.com URLs** — Twitter blocks scraping, you'll only get a login wall.
+> **✅ ALWAYS extract the tweet ID from the URL and use `twitter_get_tweets`.**
+
+| URL pattern | Extract | Tool call |
+|-------------|---------|-----------|
+| `x.com/{user}/status/{id}` | tweet ID = `{id}` | `twitter_get_tweets(tweet_ids=["{id}"])` |
+| `twitter.com/{user}/status/{id}` | tweet ID = `{id}` | `twitter_get_tweets(tweet_ids=["{id}"])` |
+| `x.com/{user}` | username = `{user}` | `twitter_user_info(username="{user}")` |
+
+**Example:** User sends `https://x.com/zerohedge/status/2042670029548794219`
+→ Extract ID: `2042670029548794219`
+→ Call: `twitter_get_tweets(tweet_ids=["2042670029548794219"])`
+→ Never: `web_fetch("https://x.com/...")`
+
 ## 💡 Few-Shot Examples
 
 **Q: 找 3 个关于 BTC ETF 的高赞推文，只要 ID 和点赞数**
@@ -59,6 +75,8 @@ Read-only access to Twitter/X via twitterapi.io. Use these tools to look up twee
 
 | Trigger keywords | Action |
 |-----------------|--------|
+| x.com or twitter.com URL with `/status/{id}` | Extract tweet ID → `twitter_get_tweets(tweet_ids=["{id}"])` — **never web_fetch** |
+| x.com or twitter.com URL with `/{username}` only | Extract username → `twitter_user_info(username="{username}")` |
 | crypto sentiment / 情绪扫描 / market mood / BTC ETH SOL 讨论 | Call `twitter_search_tweets` once per coin: `"$BTC"`, `"$ETH"`, `"$SOL"` — summarize tone, **no user profile lookups** |
 | search tweets about X | Call `twitter_search_tweets` with the topic |
 | who is @username | Call `twitter_user_info` |
