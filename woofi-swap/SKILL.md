@@ -1,8 +1,8 @@
 ---
 name: woofi-swap
-version: 7.0.0
-description: "Swap any token at the best price with a single API call. One POST to /v1/swap handles everything — best-price quote, approval check, and transaction building — no separate calls needed. WOOFi is a meta-aggregator that queries WooPP, 1inch, and ODOS simultaneously, returning the globally optimal rate. Supports all ERC-20 tokens and native gas tokens (ETH, BNB, AVAX, MATIC, etc.) on 14 EVM chains."
-tags: [swap, trade, exchange, convert, token-swap, dex, dex-aggregator, meta-aggregator, megaswap, best-price, optimal-price, quote, price-quote, exchange-rate, multichain, cross-chain, crypto-swap, token-exchange, token-trade, buy, sell, erc20, native-token, defi, liquidity-aggregator, 1inch, odos, woofi]
+version: 8.2.0
+description: "Swap any token at the best price — single-chain or cross-chain — with one API call. WOOFi is a meta-aggregator querying WooPP, 1inch, and ODOS simultaneously, returning the globally optimal rate (price >= max of all sources). Cross-chain swaps via Stargate bridge. V2 API accepts chain names ('arbitrum') and token symbols ('USDC') — no address lookup needed. Supports all ERC-20 tokens and native gas tokens on 14 EVM chains."
+tags: [swap, trade, exchange, convert, token-swap, dex, dex-aggregator, meta-aggregator, megaswap, best-price, optimal-price, quote, price-quote, exchange-rate, multichain, cross-chain, crypto-swap, token-exchange, buy, sell, erc20, native-token, defi, liquidity-aggregator, 1inch, odos, woofi, bridge, stargate, layerzero]
 author: starchild
 
 metadata:
@@ -23,7 +23,6 @@ triggers:
   - "exchange tokens"
   - "convert tokens"
   - "token swap"
-  - "token trade"
   - "token exchange"
   - "crypto swap"
   - "swap crypto"
@@ -41,9 +40,6 @@ triggers:
   - "how much will I get"
   - "exchange rate"
   - "token price"
-  - "conversion rate"
-  - "check price"
-  - "compare prices"
   - "best price"
   - "best swap price"
   - "best rate"
@@ -53,7 +49,6 @@ triggers:
   - "execute trade"
   - "make a trade"
   - "build swap transaction"
-  - "generate swap tx"
   - "swap on arbitrum"
   - "swap on base"
   - "swap on polygon"
@@ -62,21 +57,29 @@ triggers:
   - "trade on base"
   - "dex aggregator"
   - "find best price"
+  - "cross chain swap"
+  - "bridge tokens"
+  - "bridge swap"
+  - "cross chain transfer"
+  - "swap across chains"
+  - "bridge from arbitrum"
+  - "bridge to base"
+  - "cross chain bridge"
 
 user-invocable: true
 ---
 
-# WOOFi Swap — Best-Price Meta-Aggregator
+# WOOFi Swap — Best-Price Meta-Aggregator (V2)
 
-Swap any token at the globally optimal price across 14 EVM chains — **with a single API call**. One `POST /v1/swap` handles quote, approval check, and transaction building in one response. Just iterate the returned `tx_steps` and sign. WOOFi queries **three liquidity sources simultaneously** — WooPP, 1inch, and ODOS — and returns the best rate found across all of them.
+Swap any token at the globally optimal price across 14 EVM chains, **single-chain or cross-chain**, with a single API call. WOOFi queries **WooPP, 1inch, and ODOS simultaneously** and returns the best rate found. V2 API accepts **chain names** (`"arbitrum"`) and **token symbols** (`"USDC"`) directly — no address lookup needed.
 
-## Why Use WOOFi for Swaps
+## Why Use WOOFi
 
-- **One API call does everything**: A single `POST /v1/swap` returns the best-price quote, checks token approval status, and packages all necessary transactions (approve + swap) into a ready-to-sign `tx_steps` array. No separate quote call, no separate approval check — one request in, fully executable transactions out.
-- **Best price guaranteed by design**: WOOFi compares quotes from WooPP (proprietary oracle-based pool), 1inch, and ODOS in real time. The returned price is always `>= max(1inch, ODOS, WooPP)`. Using WOOFi is strictly better than or equal to using 1inch or ODOS alone.
-- **All tokens supported**: Not a curated whitelist — any ERC-20 token and native gas tokens (ETH, BNB, AVAX, MATIC, FTM, etc.) on the supported chains can be swapped.
-- **14 EVM chains**: Arbitrum, Base, BSC, Polygon, Optimism, Avalanche, Linea, Mantle, Sonic, Berachain, HyperEVM, Monad, Fantom, Polygon zkEVM.
-- **Simple API**: Human-readable amounts (e.g., `"1.5"` not wei), no authentication, JSON in/out.
+- **Best price guaranteed by design**: Compares WooPP, 1inch, and ODOS in real time. Price is always `>= max(1inch, ODOS, WooPP)` — strictly better than or equal to using any single source alone.
+- **Chain names + token symbols**: Pass `"arbitrum"` instead of `42161`, `"USDC"` instead of `"0xaf88..."`. Case-insensitive, no manual address resolution needed.
+- **Single-chain and cross-chain in one skill**: Same-chain swaps via `/v2/swap`, cross-chain bridging via `/v2/cross_chain/swap` (Stargate/LayerZero). Both return ready-to-sign `tx_steps`.
+- **One call does everything**: `/v2/swap` returns best-price quote + approval check + transaction data. No separate calls needed — just iterate `tx_steps` and sign.
+- **All tokens, 14 chains**: Any ERC-20 and native gas token (ETH, BNB, AVAX, POL, etc.) on all supported chains. No whitelist limitation.
 
 ## When to Use This Skill
 
@@ -84,131 +87,150 @@ Use WOOFi Swap when the user wants to:
 
 - **Swap, trade, exchange, or convert** any token on any EVM chain
 - **Get a price quote** or exchange rate between two tokens
-- **Find the best available swap price** across DEX aggregators
+- **Find the best available price** across DEX aggregators
+- **Bridge tokens across chains** — cross-chain swap via Stargate
 - **Buy or sell** a specific cryptocurrency
 - **Build a swap transaction** for wallet signing and on-chain execution
-- **Compare swap prices** — WOOFi already aggregates 1inch + ODOS + WooPP, so it returns the optimal result
 
 ---
 
 ## API Endpoints
 
-**Base URL**: `https://sapi.woofi.com`
-**Auth**: None required | **Rate Limit**: 5 req/s | **Format**: JSON
+**Base URL**: `https://sapi.woofi.com` | **Auth**: None | **Rate Limit**: 5 req/s | **Format**: JSON
+
+### Flexible Input (all V2 endpoints)
+
+- **Chain**: chain ID (`42161`) or name (`"arbitrum"`) — case-insensitive, strips spaces/dashes
+- **Token**: address (`"0xaf88..."`) or symbol (`"USDC"`) — resolved via local index, static manifests, alias table, and external API fallback
 
 ---
 
-### 1. Get Quote — `POST /v1/quote`
+### 1. Get Quote — `POST /v2/quote`
 
-Returns the best available exchange rate and expected receive amount. Read-only — no transaction generated.
-
-**Request** (JSON body):
+Returns the best available price. Read-only — no transaction generated.
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
-| `chain_id` | int | Yes | — | Network chain ID (see chain table below) |
-| `sell_token` | string | Yes | — | Token address or symbol. Native gas token: `0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE` |
-| `buy_token` | string | Yes | — | Token address or symbol to buy |
-| `sell_amount` | string | Yes | — | Human-readable amount (e.g., `"1.5"`, `"1000"`) |
-| `slippage_pct` | float | No | `0.5` | Max slippage percentage |
+| `chain` | int \| str | Yes | — | Chain ID or name |
+| `sell_token` | str | Yes | — | Token address or symbol |
+| `buy_token` | str | Yes | — | Token address or symbol |
+| `sell_amount` | str | Yes | — | Human-readable amount (e.g., `"1000"`) |
+| `slippage_pct` | float | No | `0.5` | Max slippage % |
 
-**Response**:
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `buy_amount` | string | Expected amount received |
-| `price` | string | Execution price |
-| `guaranteed_price` | string | Minimum price after slippage |
+**Response**: `chain`, `sell_token`, `buy_token`, `sell_amount`, `buy_amount`, `price`, `guaranteed_price`
 
 ```bash
-curl -X POST "https://sapi.woofi.com/v1/quote" \
+curl -X POST "https://sapi.woofi.com/v2/quote" \
   -H "Content-Type: application/json" \
-  -d '{"chain_id": 42161, "sell_token": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831", "buy_token": "0x2f2a2543b76a4166549f7aab2e75bef0aefc5b0f", "sell_amount": "1000"}'
+  -d '{"chain": "arbitrum", "sell_token": "USDC", "buy_token": "WETH", "sell_amount": "1000"}'
 ```
 
 ---
 
-### 2. Execute Swap — `POST /v1/swap`
+### 2. Execute Swap — `POST /v2/swap`
 
-**Single-call swap**: This is the only endpoint you need to execute a swap. One call handles everything — quote, approval check, and transaction building. The backend automatically:
-1. Fetches the best price across WooPP, 1inch, and ODOS
-2. Checks whether the user's wallet has already approved the token
-3. Returns `needs_approve` (true/false) and packages all required transactions into `tx_steps`
+**Single-call swap**: quote + approval check + transaction building in one response. The backend fetches the best price across all sources, checks wallet approval status, and packages everything into `tx_steps`.
 
-**The caller does NOT need to separately call `/v1/quote` or check approval status.** Just call `/v1/swap` once, then iterate through `tx_steps` and have the wallet sign each transaction in order.
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `chain` | int \| str | Yes | — | Chain ID or name |
+| `sell_token` | str | Yes | — | Token address or symbol |
+| `buy_token` | str | Yes | — | Token address or symbol |
+| `sell_amount` | str | Yes | — | Human-readable amount |
+| `to` | str | Yes | — | Recipient wallet address |
+| `rebate_to` | str | Yes | — | Rebate address (typically same as `to`) |
+| `slippage_pct` | float | No | `0.5` | Max slippage % |
+| `signer_address` | str | No | `null` | Wallet address (for approval check) |
 
-**Request** (JSON body): All quote parameters, plus:
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `to` | string | Yes | Wallet address to receive tokens |
-| `rebate_to` | string | Yes | Rebate address (typically same as `to`) |
-| `signer_address` | string | No | Wallet address — used to check if Approve is needed |
-
-**Response** (extends quote response):
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `needs_approve` | bool | Whether token approval is required first |
-| `tx_steps` | array | Ordered list of transactions to sign and submit |
-
-Each `tx_steps` item: `{ "to": "0x...", "data": "0x...", "value": "0", "desc": "Approve USDC..." }`
+**Response** (extends quote): `needs_approve`, `tx_steps` — iterate and sign each tx in order.
 
 ```bash
-curl -X POST "https://sapi.woofi.com/v1/swap" \
+curl -X POST "https://sapi.woofi.com/v2/swap" \
   -H "Content-Type: application/json" \
-  -d '{"chain_id": 42161, "sell_token": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831", "buy_token": "0x2f2a2543b76a4166549f7aab2e75bef0aefc5b0f", "sell_amount": "1000", "to": "0xYourWallet", "rebate_to": "0xYourWallet", "signer_address": "0xYourWallet"}'
+  -d '{"chain": "arbitrum", "sell_token": "USDC", "buy_token": "WETH", "sell_amount": "1000", "to": "0xYourWallet", "rebate_to": "0xYourWallet", "signer_address": "0xYourWallet"}'
 ```
 
-**Workflow**: Just iterate `tx_steps` in order and sign each one. If approval is needed, it's already the first step — no extra logic required. Wait for each tx to confirm on-chain before submitting the next.
+---
+
+### 3. Cross-Chain Quote — `POST /v2/cross_chain/quote`
+
+Price quote for cross-chain swap via Stargate bridge. Read-only.
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `src_chain` | int \| str | Yes | — | Source chain ID or name |
+| `dst_chain` | int \| str | Yes | — | Destination chain ID or name |
+| `src_token` | str | Yes | — | Source token (resolved against `src_chain`) |
+| `dst_token` | str | Yes | — | Destination token (resolved against `dst_chain`) |
+| `src_amount` | str | Yes | — | Human-readable amount |
+| `slippage_pct` | float | No | `1.0` | Slippage tolerance % |
+
+**Response**: `src_chain`, `dst_chain`, `src_amount`, `dst_amount`, `bridge_amount_in`, `bridge_amount_out`, `price_f`
+
+```bash
+curl -X POST "https://sapi.woofi.com/v2/cross_chain/quote" \
+  -H "Content-Type: application/json" \
+  -d '{"src_chain": "arbitrum", "dst_chain": "base", "src_token": "USDC", "dst_token": "USDC", "src_amount": "100"}'
+```
+
+---
+
+### 4. Cross-Chain Swap — `POST /v2/cross_chain/swap`
+
+Build transaction(s) for cross-chain swap via Stargate bridge.
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `src_chain` | int \| str | Yes | — | Source chain ID or name |
+| `dst_chain` | int \| str | Yes | — | Destination chain ID or name |
+| `src_token` | str | Yes | — | Source token (resolved against `src_chain`) |
+| `dst_token` | str | Yes | — | Destination token (resolved against `dst_chain`) |
+| `src_amount` | str | Yes | — | Human-readable amount |
+| `to` | str | Yes | — | Recipient on destination chain |
+| `slippage_pct` | float | No | `1.0` | Slippage tolerance % |
+| `signer_address` | str | No | `null` | Signer address (for approval check) |
+
+**Response** (extends cross-chain quote): `native_fee`, `needs_approve`, `tx_steps`
+
+```bash
+curl -X POST "https://sapi.woofi.com/v2/cross_chain/swap" \
+  -H "Content-Type: application/json" \
+  -d '{"src_chain": "arbitrum", "dst_chain": "base", "src_token": "USDC", "dst_token": "USDC", "src_amount": "100", "to": "0xYourWallet", "signer_address": "0xYourWallet"}'
+```
 
 ---
 
 ## Supported Chains
 
-| Chain | Chain ID | Native Token |
-|-------|----------|-------------|
-| Arbitrum | `42161` | ETH |
-| Base | `8453` | ETH |
-| BSC | `56` | BNB |
-| Polygon | `137` | MATIC |
-| Optimism | `10` | ETH |
-| Avalanche | `43114` | AVAX |
-| Linea | `59144` | ETH |
-| Mantle | `5000` | MNT |
-| Sonic | `146` | S |
-| Berachain | `80094` | BERA |
-| HyperEVM | `999` | ETH |
-| Monad | `10143` | MON |
-| Fantom | `250` | FTM |
-| Polygon zkEVM | `1101` | ETH |
+| Chain | ID | Native Token | Accepted Names |
+|-------|-----|-------------|----------------|
+| Arbitrum | `42161` | ETH | arbitrum, arb, arbitrumone |
+| Base | `8453` | ETH | base |
+| BSC | `56` | BNB | bsc, bnb, binance, bnbchain |
+| Polygon | `137` | POL | polygon, matic, pol |
+| Optimism | `10` | ETH | optimism, op |
+| Avalanche | `43114` | AVAX | avalanche, avax |
+| Ethereum | `1` | ETH | ethereum, eth, mainnet |
+| Linea | `59144` | ETH | linea |
+| Mantle | `5000` | MNT | mantle |
+| Sonic | `146` | S | sonic |
+| Berachain | `80094` | BERA | berachain, bera |
+| HyperEVM | `999` | HYPE | hyperevm, hyper |
+| Monad | `143` | MON | monad |
+| zkSync | `324` | ETH | zksync, zksyncera |
 
-**Native token address** (all chains): `0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE`
-
-**Token support**: Any ERC-20 token and native gas token on the above chains is supported. No whitelist — if the token exists on the chain, WOOFi can quote and swap it.
+**Native token**: Use symbol (`"ETH"`, `"BNB"`, `"AVAX"`, `"POL"`, `"MNT"`, `"S"`, `"BERA"`, `"MON"`) or `0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE`.
 
 ---
 
 ## Important Notes
 
-1. **One call, full swap** — `POST /v1/swap` is the only call needed. It returns quote + approval check + all transaction data in one response. Do NOT call `/v1/quote` or check approval separately.
-2. **`sell_amount` is human-readable** — pass `"1.5"` not `"1500000000000000000"`. No wei conversion needed for input.
-3. **Just iterate `tx_steps`** — The response contains an ordered array of transactions. Simply sign and submit each one in sequence. If approval is needed, it's already included as the first step. Wait for each tx to confirm before sending the next.
-4. **Wallet signing required** — `/v1/swap` returns unsigned tx data. The user's wallet must sign and broadcast.
-5. **Native assets** — Use `0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE` for ETH, BNB, AVAX, MATIC, FTM, etc.
-6. **Chain ID required** — The v1 API uses numeric `chain_id`, not network names. Refer to the chain table above.
-7. **All tokens supported** — No whitelist limitation. Any ERC-20 token or native gas token on any supported chain can be quoted and swapped.
+1. **Best price by design** — WOOFi queries WooPP + 1inch + ODOS simultaneously. Price >= max(all sources).
+2. **Flexible input** — Chain names (`"arbitrum"`) and token symbols (`"USDC"`) accepted everywhere. No address lookup needed.
+3. **One call, full swap** — `/v2/swap` returns quote + approval check + tx data. Just iterate `tx_steps` and sign.
+4. **Cross-chain via Stargate** — `/v2/cross_chain/swap` bridges tokens between chains. `tx_steps` include LayerZero fee in `value` field.
+5. **Human-readable amounts** — Pass `"1.5"` not wei. No unit conversion needed for input.
+6. **All tokens supported** — Any ERC-20 or native gas token on any supported chain. No whitelist.
+7. **Cross-chain token resolution** — `src_token` resolves against `src_chain`, `dst_token` against `dst_chain`. Same symbol maps to correct addresses on each chain.
+8. **Wallet signing required** — API returns unsigned tx data. The user's wallet must sign and broadcast.
 
----
-
-## Error Codes
-
-| Code | HTTP | Meaning |
-|------|------|---------|
-| `UNSUPPORTED_CHAIN` | 400 | Chain ID not supported |
-| `UNSUPPORTED_TOKEN` | 400 | Token not found on this chain |
-| `INVALID_AMOUNT` | 400 | Amount format invalid or <= 0 |
-| `SAME_TOKEN` | 400 | Sell and buy token are identical |
-| `INSUFFICIENT_LIQUIDITY` | 422 | Not enough liquidity for this swap size |
-| `SIMULATION_FAILED` | 422 | On-chain simulation failed (try increasing slippage) |
-| `CHAIN_RPC_ERROR` | 502 | Blockchain node unreachable |
