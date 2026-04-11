@@ -64,9 +64,11 @@ Before designing, **read `config/context/references/sc-proxy.md`** for pricing t
 - Respect rate limits: e.g. CoinGecko 60 req/min — a task polling 10 coins every minute is fine; 100 coins is not
 - Prefer batch endpoints over N single calls (e.g. `coin_price` with multiple ids vs N separate calls)
 - Pure script tasks (no API): ~0 credits/run
-- LLM-assisted tasks: 0.01-0.05/run (use cheapest model that works)
+- **LLM cost warning:** high-end models can exceed **$0.10 per single call**. Pricing varies dramatically by model tier; expensive models can be **100x+** the cost of budget models for the same workflow.
+- **Model-aware estimate required:** break LLM cost down by model (`model_price_per_call × expected_calls_per_run × runs_per_day × 30`) instead of using a single generic number.
 - Dashboard auto-refresh costs credits — default to manual refresh unless user asks otherwise
-- **Per-caller limits:** Add `SC-CALLER-ID` header to proxied requests to track and cap usage per task/service. Details in `config/context/references/sc-proxy.md` § Caller Credit Limit
+- **Spending protection:** if projected monthly LLM cost is high, explicitly ask whether to enforce per-caller limits before implementation.
+- **Per-caller tracking (required):** every proxied request must include `SC-CALLER-ID` (e.g. `job:{JOB_ID}`, `preview:{preview_id}`, `chat:{thread_id}`) so usage can be traced and capped. Details in `config/context/references/sc-proxy.md` § Caller Credit Limit
 
 **Data reliability:** Native tools > proxied APIs > direct requests > web scraping > LLM numbers (never).
 **Iron rule: Scripts fetch data. LLMs analyze text. Final output = script variables + LLM prose.**
