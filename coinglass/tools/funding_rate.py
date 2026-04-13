@@ -56,6 +56,28 @@ def _fmt_rate(val):
     sign = "+" if val >= 0 else ""
     return f"{sign}{val:.4f}%"
 
+
+def _with_rate_unit(obj: dict, field: str):
+    """Make rate-like fields unit-safe: keep numeric *_value and expose string with % on original key."""
+    if field not in obj or obj.get(field) is None:
+        return
+    raw = obj.get(field)
+    obj[f"{field}_value"] = raw
+    obj[field] = _fmt_rate(raw)
+    # Backward-compatible alias
+    obj[f"{field}_display"] = obj[field]
+    obj[f"{field}_percent"] = raw
+
+
+def _rate_num(obj: dict, field: str, default: float = 0.0) -> float:
+    """Read numeric funding rate safely from normalized payloads."""
+    if obj.get(f"{field}_value") is not None:
+        return float(obj[f"{field}_value"])
+    v = obj.get(field)
+    if isinstance(v, (int, float)):
+        return float(v)
+    return default
+
 # Coinglass Configuration
 BASE_URL = "https://open-api.coinglass.com/public/v2"
 HEADER_KEY = "coinglassSecret"
@@ -125,14 +147,13 @@ def get_funding_rates(symbol: Optional[str] = None) -> Optional[Dict[str, Any]]:
             print(f"API Error: {data.get('msg', 'Unknown error')}", file=sys.stderr)
             return None
 
-        # Enrich all rate entries with rate_display for unambiguous presentation
+        # Normalize all funding rates: original `rate`/`predictedRate` become unit-aware strings with `%`
+        # Numeric values are preserved in `rate_value` / `predictedRate_value` for compatibility.
         for symbol_entry in data.get("data", []):
             for margin_list_key in ("uMarginList", "cMarginList"):
                 for ex in symbol_entry.get(margin_list_key, []):
-                    if "rate" in ex:
-                        ex["rate_display"] = _fmt_rate(ex["rate"])
-                    if ex.get("predictedRate") is not None:
-                        ex["predictedRate_display"] = _fmt_rate(ex["predictedRate"])
+                    _with_rate_unit(ex, "rate")
+                    _with_rate_unit(ex, "predictedRate")
 
         if symbol:
             # Filter for specific symbol
@@ -190,31 +211,34 @@ def get_symbol_funding_rate(
         # Find specific exchange
         for rate_info in symbol_data.get("uMarginList", []):
             if rate_info.get("exchangeName", "").lower() == exchange.lower():
-                rate = rate_info.get("rate", 0)
-                predicted = rate_info.get("predictedRate")
+                rate_num = _rate_num(rate_info, "rate", 0.0)
+                predicted_num = _rate_num(rate_info, "predictedRate", None) if (rate_info.get("predictedRate") is not None or rate_info.get("predictedRate_value") is not None) else None
                 return {
                     "symbol": symbol.upper(),
                     "exchange": rate_info.get("exchangeName"),
-                    "rate": rate,
-                    "rate_display": _fmt_rate(rate),
-                    "rate_percent": rate,
+                    "rate": _fmt_rate(rate_num),
+                    "rate_value": rate_num,
+                    "rate_display": _fmt_rate(rate_num),
+                    "rate_percent": rate_num,
                     "next_funding_time": rate_info.get("nextFundingTime"),
                     "funding_interval_hours": rate_info.get("fundingIntervalHours"),
-                    "predicted_rate": predicted,
-                    "predicted_rate_display": _fmt_rate(predicted),
-                    "predicted_rate_percent": predicted if predicted else None
+                    "predicted_rate": _fmt_rate(predicted_num) if predicted_num is not None else None,
+                    "predicted_rate_value": predicted_num,
+                    "predicted_rate_display": _fmt_rate(predicted_num) if predicted_num is not None else None,
+                    "predicted_rate_percent": predicted_num
                 }
         return None
     else:
         # Return average across all exchanges
-        rates = [r.get("rate", 0) for r in symbol_data.get("uMarginList", []) if r.get("rate") is not None]
+        rates = [_rate_num(r, "rate", 0.0) for r in symbol_data.get("uMarginList", []) if (r.get("rate") is not None or r.get("rate_value") is not None)]
         if not rates:
             return None
         avg_rate = sum(rates) / len(rates)
         return {
             "symbol": symbol.upper(),
             "exchange": "average",
-            "rate": avg_rate,
+            "rate": _fmt_rate(avg_rate),
+            "rate_value": avg_rate,
             "rate_display": _fmt_rate(avg_rate),
             "rate_percent": avg_rate,
             "num_exchanges": len(rates),
@@ -246,18 +270,21 @@ def get_funding_rate_by_exchange(exchange: str) -> Optional[List[Dict[str, Any]]
     for symbol_data in data["data"]:
         for rate_info in symbol_data.get("uMarginList", []):
             if rate_info.get("exchangeName", "").lower() == exchange.lower():
-                rate = rate_info.get("rate", 0)
+                rate_num = _rate_num(rate_info, "rate", 0.0)
+                predicted_num = _rate_num(rate_info, "predictedRate", None) if (rate_info.get("predictedRate") is not None or rate_info.get("predictedRate_value") is not None) else None
                 results.append({
                     "symbol": symbol_data.get("symbol"),
-                    "rate": rate,
-                    "rate_display": _fmt_rate(rate),
-                    "rate_percent": rate,
+                    "rate": _fmt_rate(rate_num),
+                    "rate_value": rate_num,
+                    "rate_display": _fmt_rate(rate_num),
+                    "rate_percent": rate_num,
                     "next_funding_time": rate_info.get("nextFundingTime"),
                     "funding_interval_hours": rate_info.get("fundingIntervalHours"),
-                    "predicted_rate": rate_info.get("predictedRate")
+                    "predicted_rate": _fmt_rate(predicted_num) if predicted_num is not None else None,
+                    "predicted_rate_value": predicted_num
                 })
 
-    return sorted(results, key=lambda x: abs(x.get("rate", 0)), reverse=True) if results else None
+    return sorted(results, key=lambda x: abs(x.get("rate_value", 0.0)), reverse=True) if results else None
 
 
 def analyze_funding_opportunity(symbol: str, threshold: float = 0.01) -> Optional[Dict[str, Any]]:
@@ -294,27 +321,29 @@ def analyze_funding_opportunity(symbol: str, threshold: float = 0.01) -> Optiona
     rates = [
         {
             "exchange": r.get("exchangeName"),
-            "rate": r.get("rate", 0),
-            "rate_display": _fmt_rate(r.get("rate", 0)),
-            "rate_percent": r.get("rate", 0)
+            "rate": _fmt_rate(_rate_num(r, "rate", 0.0)),
+            "rate_value": _rate_num(r, "rate", 0.0),
+            "rate_display": _fmt_rate(_rate_num(r, "rate", 0.0)),
+            "rate_percent": _rate_num(r, "rate", 0.0)
         }
         for r in rates_list
-        if r.get("rate") is not None
+        if (r.get("rate") is not None or r.get("rate_value") is not None)
     ]
 
     if not rates:
         return None
 
-    sorted_rates = sorted(rates, key=lambda x: x["rate"])
+    sorted_rates = sorted(rates, key=lambda x: x["rate_value"])
     lowest = sorted_rates[0]
     highest = sorted_rates[-1]
-    spread = highest["rate"] - lowest["rate"]
+    spread = highest["rate_value"] - lowest["rate_value"]
 
     return {
         "symbol": symbol.upper(),
         "highest": highest,
         "lowest": lowest,
-        "spread": spread,
+        "spread": _fmt_rate(spread),
+        "spread_value": spread,
         "spread_percent": spread,
         "opportunity": spread >= threshold,
         "all_rates": sorted_rates
@@ -341,9 +370,9 @@ def main():
             else:
                 print(f"\n{result['symbol']} Funding Rate Analysis")
                 print("=" * 50)
-                print(f"Highest: {result['highest']['exchange']}: {result['highest']['rate_percent']:.4f}%")
-                print(f"Lowest:  {result['lowest']['exchange']}: {result['lowest']['rate_percent']:.4f}%")
-                print(f"Spread:  {result['spread_percent']:.4f}%")
+                print(f"Highest: {result['highest']['exchange']}: {result['highest']['rate']}")
+                print(f"Lowest:  {result['lowest']['exchange']}: {result['lowest']['rate']}")
+                print(f"Spread:  {result['spread']}")
                 print(f"Opportunity: {'YES' if result['opportunity'] else 'NO'}")
         else:
             print(f"No data found for {args.symbol}")
@@ -358,7 +387,7 @@ def main():
                 print(f"\n{args.by_exchange} Funding Rates")
                 print("=" * 50)
                 for r in result[:20]:  # Top 20
-                    print(f"{r['symbol']:10s} {r['rate_percent']:>8.4f}%")
+                    print(f"{r['symbol']:10s} {r['rate']:>10s}")
         else:
             print(f"No data found for exchange {args.by_exchange}")
         return
@@ -373,11 +402,11 @@ def main():
                 print("=" * 50)
                 if args.exchange:
                     print(f"Exchange: {result['exchange']}")
-                    print(f"Rate: {result['rate_percent']:.4f}%")
-                    if result.get('predicted_rate_percent'):
-                        print(f"Predicted: {result['predicted_rate_percent']:.4f}%")
+                    print(f"Rate: {result['rate']}")
+                    if result.get('predicted_rate'):
+                        print(f"Predicted: {result['predicted_rate']}")
                 else:
-                    print(f"Average Rate: {result['rate_percent']:.4f}%")
+                    print(f"Average Rate: {result['rate']}")
                     print(f"Exchanges: {result['num_exchanges']}")
         else:
             print(f"No funding rate found for {args.symbol}" + (f" on {args.exchange}" if args.exchange else ""))
@@ -395,8 +424,10 @@ def main():
                     symbol = symbol_data.get("symbol", "???")
                     rates = symbol_data.get("uMarginList", [])
                     if rates:
-                        avg = sum(r.get("rate", 0) for r in rates) / len(rates)
-                        print(f"{symbol:10s} avg: {avg:>8.4f}%")
+                        numeric_rates = [_rate_num(r, "rate", 0.0) for r in rates if (r.get("rate") is not None or r.get("rate_value") is not None)]
+                        if numeric_rates:
+                            avg = sum(numeric_rates) / len(numeric_rates)
+                            print(f"{symbol:10s} avg: {_fmt_rate(avg)}")
         else:
             print("Failed to fetch funding rates")
         return
