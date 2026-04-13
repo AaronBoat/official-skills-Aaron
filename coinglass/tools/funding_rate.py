@@ -47,6 +47,15 @@ except ImportError:
 import requests
 from core.http_client import proxied_get
 
+
+def _fmt_rate(val):
+    """Format a funding rate value as a display string with % sign.
+    Coinglass returns values already in percent (0.01 means 0.01%), so NO multiplication."""
+    if val is None:
+        return None
+    sign = "+" if val >= 0 else ""
+    return f"{sign}{val:.4f}%"
+
 # Coinglass Configuration
 BASE_URL = "https://open-api.coinglass.com/public/v2"
 HEADER_KEY = "coinglassSecret"
@@ -116,6 +125,15 @@ def get_funding_rates(symbol: Optional[str] = None) -> Optional[Dict[str, Any]]:
             print(f"API Error: {data.get('msg', 'Unknown error')}", file=sys.stderr)
             return None
 
+        # Enrich all rate entries with rate_display for unambiguous presentation
+        for symbol_entry in data.get("data", []):
+            for margin_list_key in ("uMarginList", "cMarginList"):
+                for ex in symbol_entry.get(margin_list_key, []):
+                    if "rate" in ex:
+                        ex["rate_display"] = _fmt_rate(ex["rate"])
+                    if ex.get("predictedRate") is not None:
+                        ex["predictedRate_display"] = _fmt_rate(ex["predictedRate"])
+
         if symbol:
             # Filter for specific symbol
             filtered = [d for d in data.get("data", []) if d.get("symbol", "").upper() == symbol.upper()]
@@ -173,15 +191,18 @@ def get_symbol_funding_rate(
         for rate_info in symbol_data.get("uMarginList", []):
             if rate_info.get("exchangeName", "").lower() == exchange.lower():
                 rate = rate_info.get("rate", 0)
+                predicted = rate_info.get("predictedRate")
                 return {
                     "symbol": symbol.upper(),
                     "exchange": rate_info.get("exchangeName"),
                     "rate": rate,
+                    "rate_display": _fmt_rate(rate),
                     "rate_percent": rate,
                     "next_funding_time": rate_info.get("nextFundingTime"),
                     "funding_interval_hours": rate_info.get("fundingIntervalHours"),
-                    "predicted_rate": rate_info.get("predictedRate"),
-                    "predicted_rate_percent": rate_info.get("predictedRate", 0) if rate_info.get("predictedRate") else None
+                    "predicted_rate": predicted,
+                    "predicted_rate_display": _fmt_rate(predicted),
+                    "predicted_rate_percent": predicted if predicted else None
                 }
         return None
     else:
@@ -194,6 +215,7 @@ def get_symbol_funding_rate(
             "symbol": symbol.upper(),
             "exchange": "average",
             "rate": avg_rate,
+            "rate_display": _fmt_rate(avg_rate),
             "rate_percent": avg_rate,
             "num_exchanges": len(rates),
             "exchanges_data": symbol_data.get("uMarginList", [])
@@ -228,6 +250,7 @@ def get_funding_rate_by_exchange(exchange: str) -> Optional[List[Dict[str, Any]]
                 results.append({
                     "symbol": symbol_data.get("symbol"),
                     "rate": rate,
+                    "rate_display": _fmt_rate(rate),
                     "rate_percent": rate,
                     "next_funding_time": rate_info.get("nextFundingTime"),
                     "funding_interval_hours": rate_info.get("fundingIntervalHours"),
@@ -272,6 +295,7 @@ def analyze_funding_opportunity(symbol: str, threshold: float = 0.01) -> Optiona
         {
             "exchange": r.get("exchangeName"),
             "rate": r.get("rate", 0),
+            "rate_display": _fmt_rate(r.get("rate", 0)),
             "rate_percent": r.get("rate", 0)
         }
         for r in rates_list

@@ -412,7 +412,7 @@ taker_vol = cg_aggregated_taker_volume("BTC", "1h", 100)
 
 ## ⚠️ Gotcha: Funding Rate Values
 
-API `rate` field is **already in percent** — `0.0058` means `0.0058%`, NOT `0.58%`. Do NOT multiply by 100. Display directly with `%` suffix.
+API `rate` field is **already in percent** — `0.0058` means `0.0058%`, NOT `0.58%`. Do NOT multiply by 100. All funding rate responses include a **`rate_display`** field (e.g. `"+0.0058%"`) — use it directly for display.
 
 ## Interpretation Guides
 
