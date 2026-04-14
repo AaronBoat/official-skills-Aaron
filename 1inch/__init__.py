@@ -1,16 +1,17 @@
 """
-1inch Extension — Same-Chain Swap + Fusion+ Cross-Chain + Limit Orders via 1inch DEX Aggregator.
+1inch Extension — Same-Chain Swap + Fusion+ Cross-Chain (EVM↔SOL) + Limit Orders.
 
-Supports: Ethereum, Arbitrum, Base, Optimism, Polygon, BSC, Avalanche, Gnosis.
-Same-chain tools require a `chain` parameter. Cross-chain tools require `src_chain` and `dst_chain`.
+Supports EVM: Ethereum, Arbitrum, Base, Optimism, Polygon, BSC, Avalanche, Gnosis.
+Cross-chain also supports Solana (chain ID 501) as src or dst.
 
-Provides 12 tools:
+Provides 14 tools:
 - 5 same-chain:      quote, tokens, check_allowance, approve, swap
-- 3 cross-chain:     cross_chain_quote, cross_chain_swap, cross_chain_status
+- 5 cross-chain:     cross_chain_quote, cross_chain_swap, cross_chain_status
+                     sol_cross_chain_quote, sol_to_evm_swap
 - 4 limit orders:    get_orders, get_order, create_limit_order, cancel_limit_order
 
-Architecture: All write ops use wallet_sign_transaction / wallet_sign_typed_data (platform wallet).
-No Fly Machine dependency. Works in any Starchild container.
+Architecture: All write ops use wallet_sign_transaction / wallet_sign_typed_data (EVM)
+              or wallet_sol_sign_transaction (Solana). No Fly Machine dependency.
 """
 
 import logging
@@ -42,11 +43,13 @@ def register(api) -> List[str]:
             OneInchSwapTool,
         )
         from .fusion_tools import (
-            # Cross-chain read-only tools (2)
+            # Cross-chain read-only tools (3)
             CrossChainQuoteTool,
             CrossChainStatusTool,
-            # Cross-chain write tools (1)
+            SolCrossChainQuoteTool,
+            # Cross-chain write tools (2)
             CrossChainSwapTool,
+            SolToEvmSwapTool,
         )
         from .orderbook_tools import (
             # Limit order read-only tools (2)
@@ -64,10 +67,12 @@ def register(api) -> List[str]:
         api.register_tool(OneInchApproveTool())
         api.register_tool(OneInchSwapTool())
 
-        # Cross-chain Fusion+ tools
+        # Cross-chain Fusion+ tools (EVM↔EVM + EVM↔SOL)
         api.register_tool(CrossChainQuoteTool())
         api.register_tool(CrossChainSwapTool())
         api.register_tool(CrossChainStatusTool())
+        api.register_tool(SolCrossChainQuoteTool())
+        api.register_tool(SolToEvmSwapTool())
 
         # Limit order / Orderbook tools
         api.register_tool(GetOrdersTool())
@@ -82,10 +87,13 @@ def register(api) -> List[str]:
             "oneinch_check_allowance",
             "oneinch_approve",
             "oneinch_swap",
-            # Cross-chain
+            # Cross-chain EVM↔EVM / EVM→SOL
             "oneinch_cross_chain_quote",
             "oneinch_cross_chain_swap",
             "oneinch_cross_chain_status",
+            # Cross-chain SOL→EVM
+            "oneinch_sol_cross_chain_quote",
+            "oneinch_sol_to_evm_swap",
             # Limit orders
             "oneinch_get_orders",
             "oneinch_get_order",
@@ -103,8 +111,8 @@ def register(api) -> List[str]:
 # Extension metadata
 EXTENSION_INFO = {
     "name": "oneinch",
-    "version": "2.3.0",
-    "description": "1inch DEX aggregator — same-chain swap, Fusion+ cross-chain, limit orders",
+    "version": "3.0.0",
+    "description": "1inch DEX aggregator — same-chain swap, Fusion+ cross-chain (EVM↔SOL), limit orders",
     "tools": [
         "oneinch_quote",
         "oneinch_tokens",
@@ -114,6 +122,8 @@ EXTENSION_INFO = {
         "oneinch_cross_chain_quote",
         "oneinch_cross_chain_swap",
         "oneinch_cross_chain_status",
+        "oneinch_sol_cross_chain_quote",
+        "oneinch_sol_to_evm_swap",
         "oneinch_get_orders",
         "oneinch_get_order",
         "oneinch_create_limit_order",

@@ -446,3 +446,295 @@ Returns: order hash, final status, amounts"""
                     error=f"Policy violation: {err}. Use wallet_propose_policy to allow this operation.",
                 )
             return ToolResult(success=False, error=err)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# SOLANA CROSS-CHAIN TOOLS (SOL→EVM via Fusion+)
+# Added: 2025. Verified API paths: build/solana, relayer submit srcChainId=501.
+# SOL internal swap: NOT available via 1inch API — use Jupiter skill instead.
+# ══════════════════════════════════════════════════════════════════════════════
+
+SOLANA_CHAIN_ID = 501
+SOL_NATIVE_TOKEN = "SoNative11111111111111111111111111111111111"
+
+
+def _get_sol_wallet_address() -> str:
+    """Get agent Solana wallet address."""
+    try:
+        from tools.wallet import wallet_info
+        info = wallet_info()
+        for w in (info if isinstance(info, list) else info.get("wallets", [])):
+            if w.get("chain_type") == "solana":
+                return w["wallet_address"]
+    except Exception:
+        pass
+    return ""
+
+
+class SolCrossChainQuoteTool(BaseTool):
+    """Get a Solana→EVM cross-chain quote via 1inch Fusion+."""
+
+    @property
+    def name(self) -> str:
+        return "oneinch_sol_cross_chain_quote"
+
+    @property
+    def description(self) -> str:
+        return """Get a Solana→EVM cross-chain quote via 1inch Fusion+ (read-only).
+
+Returns estimated output for swapping Solana tokens to an EVM chain.
+Use SOL_NATIVE = "SoNative11111111111111111111111111111111111" for native SOL.
+USDC on Solana = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+
+Parameters:
+- src_token: Source token address on Solana
+- dst_chain: Destination EVM network — ethereum, arbitrum, base, optimism, polygon, bsc
+- dst_token: Destination token address on the EVM chain
+- amount: Amount in lamports (1 SOL = 1_000_000_000, 1 USDC = 1_000_000)
+
+Returns: estimated output, quote_id, preset info"""
+
+    @property
+    def parameters(self) -> dict:
+        return {
+            "type": "object",
+            "properties": {
+                "src_token": {"type": "string", "description": "Source token on Solana (use SoNative... for native SOL)"},
+                "dst_chain": {"type": "string", "description": "Destination EVM network: ethereum, arbitrum, base, optimism, polygon, bsc"},
+                "dst_token": {"type": "string", "description": "Destination token address on the EVM chain"},
+                "amount": {"type": "string", "description": "Amount in lamports (1 SOL = 1_000_000_000)"},
+            },
+            "required": ["src_token", "dst_chain", "dst_token", "amount"],
+        }
+
+    async def execute(
+        self, ctx: ToolContext,
+        src_token: str = "", dst_chain: str = "",
+        dst_token: str = "", amount: str = "",
+        **kwargs,
+    ) -> ToolResult:
+        if not src_token or not dst_chain or not dst_token or not amount:
+            return ToolResult(success=False, error="src_token, dst_chain, dst_token, amount are required")
+
+        try:
+            dst_chain_id = resolve_chain(dst_chain)
+        except ValueError as e:
+            return ToolResult(success=False, error=str(e))
+
+        sol_wallet = _get_sol_wallet_address() or "11111111111111111111111111111111"
+
+        try:
+            data = _fusion_get("/quoter/v1.1/quote/receive", {
+                "srcChain": str(SOLANA_CHAIN_ID),
+                "dstChain": str(dst_chain_id),
+                "srcTokenAddress": src_token,
+                "dstTokenAddress": dst_token,
+                "amount": amount,
+                "walletAddress": sol_wallet,
+                "enableEstimate": "true",
+            })
+            preset_info = data.get("presets", {}).get("medium", {})
+            return ToolResult(success=True, output={
+                "src_chain": "solana",
+                "dst_chain": dst_chain,
+                "src_token": src_token,
+                "dst_token": dst_token,
+                "src_amount": amount,
+                "dst_amount_estimate": data.get("dstTokenAmount", ""),
+                "quote_id": data.get("quoteId", ""),
+                "preset_medium": {
+                    "auction_duration": preset_info.get("auctionDuration"),
+                    "secrets_count": preset_info.get("secretsCount", 1),
+                },
+            })
+        except Exception as e:
+            return ToolResult(success=False, error=str(e))
+
+
+class SolToEvmSwapTool(BaseTool):
+    """Execute a Solana→EVM cross-chain swap via 1inch Fusion+."""
+
+    @property
+    def name(self) -> str:
+        return "oneinch_sol_to_evm_swap"
+
+    @property
+    def description(self) -> str:
+        return """Execute a Solana→EVM cross-chain swap via 1inch Fusion+.
+
+Swaps tokens from Solana to an EVM chain (e.g., SOL→USDC@Ethereum).
+Solana wallet signs a Solana transaction; tokens arrive on EVM destination.
+
+Flow: Quote → Build (Solana tx) → Sign with SOL wallet → Submit → Poll → Reveal secrets
+
+⚠️ Long-running (up to 5 min). Use sessions_spawn for background execution.
+
+Use SOL_NATIVE = "SoNative11111111111111111111111111111111111" for native SOL.
+USDC on Solana = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+
+Parameters:
+- src_token: Source token address on Solana
+- dst_chain: Destination EVM network — ethereum, arbitrum, base, optimism, polygon, bsc
+- dst_token: Destination token address on the EVM chain
+- amount: Amount in lamports (1 SOL = 1_000_000_000, 1 USDC = 1_000_000)
+- preset: Speed — fast, medium (default), slow"""
+
+    @property
+    def parameters(self) -> dict:
+        return {
+            "type": "object",
+            "properties": {
+                "src_token": {"type": "string", "description": "Source token on Solana"},
+                "dst_chain": {"type": "string", "description": "Destination EVM network: ethereum, arbitrum, base, optimism, polygon, bsc"},
+                "dst_token": {"type": "string", "description": "Destination token address on the EVM chain"},
+                "amount": {"type": "string", "description": "Amount in lamports (1 SOL = 1_000_000_000)"},
+                "preset": {"type": "string", "description": "Speed preset: fast, medium (default), slow"},
+            },
+            "required": ["src_token", "dst_chain", "dst_token", "amount"],
+        }
+
+    async def execute(
+        self, ctx: ToolContext,
+        src_token: str = "", dst_chain: str = "",
+        dst_token: str = "", amount: str = "",
+        preset: str = "medium", **kwargs,
+    ) -> ToolResult:
+        if not src_token or not dst_chain or not dst_token or not amount:
+            return ToolResult(success=False, error="src_token, dst_chain, dst_token, amount are required")
+        if preset not in ("fast", "medium", "slow"):
+            return ToolResult(success=False, error=f"Invalid preset '{preset}'. Use: fast, medium, slow")
+
+        try:
+            dst_chain_id = resolve_chain(dst_chain)
+        except ValueError as e:
+            return ToolResult(success=False, error=str(e))
+
+        sol_wallet = _get_sol_wallet_address()
+        if not sol_wallet:
+            return ToolResult(success=False, error="No Solana wallet configured")
+
+        evm_wallet = _get_wallet_address()
+        if not evm_wallet:
+            return ToolResult(success=False, error="No EVM wallet configured (needed as receiver)")
+
+        try:
+            # 1. Quote
+            quote = _fusion_get("/quoter/v1.1/quote/receive", {
+                "srcChain": str(SOLANA_CHAIN_ID),
+                "dstChain": str(dst_chain_id),
+                "srcTokenAddress": src_token,
+                "dstTokenAddress": dst_token,
+                "amount": amount,
+                "walletAddress": sol_wallet,
+                "enableEstimate": "true",
+            })
+            quote_id = quote.get("quoteId", "")
+            if not quote_id:
+                return ToolResult(success=False, error="Quote missing quoteId")
+
+            dst_amount_est = quote.get("dstTokenAmount", "")
+            preset_info = quote.get("presets", {}).get(preset, quote.get("presets", {}).get("medium", {}))
+            secrets_count = preset_info.get("secretsCount", 1)
+
+            # 2. Generate secrets
+            secrets = _generate_secrets(secrets_count)
+            secret_hashes = [_hash_secret(s) for s in secrets]
+
+            # 3. Build Solana order (receiver = EVM wallet)
+            build_result = _fusion_post(
+                "/quoter/v1.1/quote/build/solana",
+                body={"secretsHashList": secret_hashes, "preset": preset, "receiver": evm_wallet},
+                params={"quoteId": quote_id},
+            )
+            order_hash = build_result.get("orderHash", "")
+            order_struct = build_result.get("order", {})
+            solana_tx = build_result.get("transaction", "")
+
+            if not solana_tx:
+                return ToolResult(success=False, error="Build API returned no Solana transaction",
+                                  output={"build_keys": list(build_result.keys())})
+
+            # 4. Sign Solana transaction
+            from tools.wallet import wallet_sol_sign_transaction
+            sign_result = wallet_sol_sign_transaction(solana_tx)
+            signed_tx = sign_result.get("signedTransaction", sign_result.get("transaction", ""))
+            if not signed_tx:
+                return ToolResult(success=False, error=f"SOL wallet sign failed: {sign_result}")
+
+            # 5. Submit
+            submit_payload = {
+                "order": order_struct,
+                "signature": signed_tx,
+                "quoteId": quote_id,
+                "srcChainId": SOLANA_CHAIN_ID,
+            }
+            if secrets_count > 1:
+                submit_payload["secretHashes"] = secret_hashes
+
+            submit_result = _fusion_post("/relayer/v1.1/submit", submit_payload)
+            order_hash = submit_result.get("orderHash", order_hash)
+
+            if not order_hash:
+                return ToolResult(success=False, error="Submit returned no order hash")
+
+            # 6. Poll
+            revealed = set()
+            start = time.time()
+
+            while time.time() - start < MAX_POLL_TIME:
+                if len(revealed) < secrets_count:
+                    try:
+                        fills = _fusion_get(f"/orders/v1.1/order/ready-to-accept-secret-fills/{order_hash}")
+                        for fill in fills.get("fills", []):
+                            idx = fill.get("idx", 0)
+                            if idx not in revealed and idx < len(secrets):
+                                _fusion_post("/relayer/v1.1/submit/secret", {
+                                    "orderHash": order_hash,
+                                    "secret": "0x" + secrets[idx].hex(),
+                                })
+                                revealed.add(idx)
+                    except Exception:
+                        pass
+
+                try:
+                    status = _fusion_get(f"/orders/v1.1/order/status/{order_hash}")
+                    order_status = status.get("status", "").lower()
+                    if order_status in ("executed", "expired", "refunded", "cancelled"):
+                        return ToolResult(
+                            success=(order_status == "executed"),
+                            output={
+                                "status": order_status,
+                                "order_hash": order_hash,
+                                "src_chain": "solana", "dst_chain": dst_chain,
+                                "src_token": src_token, "dst_token": dst_token,
+                                "src_amount": amount,
+                                "dst_amount": status.get("dstAmount", dst_amount_est),
+                                "secrets_revealed": len(revealed),
+                                "elapsed_seconds": int(time.time() - start),
+                            },
+                            error=f"Order {order_status}" if order_status != "executed" else None,
+                        )
+                except Exception:
+                    pass
+
+                time.sleep(POLL_INTERVAL)
+
+            return ToolResult(
+                success=False,
+                output={
+                    "status": "submitted_polling_timeout",
+                    "order_hash": order_hash,
+                    "src_chain": "solana", "dst_chain": dst_chain,
+                    "src_amount": amount, "dst_amount_estimate": dst_amount_est,
+                    "message": f"Submitted but not confirmed within {MAX_POLL_TIME}s. "
+                               "Use oneinch_cross_chain_status(order_hash) to check later.",
+                },
+                error=f"Order timed out after {MAX_POLL_TIME}s.",
+            )
+
+        except Exception as e:
+            err = str(e)
+            logger.error(f"SOL→EVM swap failed: {err}", exc_info=True)
+            if "policy" in err.lower():
+                return ToolResult(success=False, error=f"Policy violation: {err}. Use wallet_propose_policy.")
+            return ToolResult(success=False, error=err)

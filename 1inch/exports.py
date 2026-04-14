@@ -2,16 +2,20 @@
 1inch DEX Aggregator — Native tool exports for agent routing.
 
 Tools registered:
-  READ  (7): oneinch_quote, oneinch_tokens, oneinch_check_allowance
+  READ  (8): oneinch_quote, oneinch_tokens, oneinch_check_allowance
              oneinch_cross_chain_quote, oneinch_cross_chain_status
              oneinch_get_orders, oneinch_get_order
-  WRITE (5): oneinch_approve, oneinch_swap
+             oneinch_sol_cross_chain_quote
+  WRITE (6): oneinch_approve, oneinch_swap
              oneinch_cross_chain_swap
+             oneinch_sol_to_evm_swap
              oneinch_create_limit_order, oneinch_cancel_limit_order
 
 All API calls via sc-proxy (credentials auto-injected).
 No Fly Machine dependency. Works in any Starchild container.
-Cross-chain swap: requests sync path (wallet_sign_typed_data), verified ETH→ARB 2025.
+Cross-chain: EVM→EVM/SOL uses wallet_sign_typed_data + build/evm (verified ETH→ARB, ETH→SOL 2025).
+             SOL→EVM uses wallet_sol_sign_transaction + build/solana (2025).
+SOL internal swap: NOT available via 1inch API (dApp only). Use Jupiter skill instead.
 """
 
 import os
@@ -26,6 +30,10 @@ SUPPORTED_CHAINS = {
     "optimism": 10, "polygon": 137, "bsc": 56,
     "avalanche": 43114, "gnosis": 100,
 }
+# SOL chain for cross-chain Fusion+
+SOLANA_CHAIN_ID = 501
+SOL_NATIVE_TOKEN = "SoNative11111111111111111111111111111111111"   # 1inch alias for native SOL
+
 NATIVE_TOKEN = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
 ROUTER_V6 = "0x111111125421cA6dc452d289314280a0f8842A65"
 ORDERBOOK_BASE = "https://api.1inch.dev/orderbook/v4.0"
@@ -699,6 +707,294 @@ def oneinch_cross_chain_swap(
             "status": "submitted_polling_timeout",
             "order_hash": order_hash,
             "src_chain": src_chain, "dst_chain": dst_chain,
+            "src_amount": amount, "dst_amount_estimate": dst_amount_est,
+            "message": f"Order submitted but did not confirm within {MAX_POLL}s. "
+                       "Use oneinch_cross_chain_status(order_hash) to check later.",
+        }
+
+    except Exception as e:
+        err = str(e)
+        if "policy" in err.lower():
+            return {"error": f"Policy violation: {err}. Use wallet_propose_policy to allow this operation."}
+        return {"error": err}
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# SOLANA CROSS-CHAIN TOOLS (Fusion+ SOL↔EVM)
+# ══════════════════════════════════════════════════════════════════════════════
+
+def _get_sol_wallet_address() -> str:
+    """Get agent Solana address from platform wallet."""
+    try:
+        from tools.wallet import wallet_info
+        info = wallet_info()
+        for w in (info if isinstance(info, list) else info.get("wallets", [])):
+            if w.get("chain_type") == "solana":
+                return w["wallet_address"]
+    except Exception:
+        pass
+    return ""
+
+
+def _b58_to_solana_tx_b64(tx_b58: str) -> str:
+    """Convert 1inch base58 Solana tx message → proper versioned tx base64 for Privy signing.
+
+    1inch build/solana returns the tx MESSAGE (not full tx) in base58.
+    Privy /agent/sol/sign-transaction expects a full versioned Solana tx in base64:
+    [0x01 (1 sig)][64 zero bytes (sig placeholder)][message bytes]
+
+    Returns base64-encoded full tx ready for Privy signing.
+    """
+    import base64
+    _ALPHA = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
+    num = 0
+    for char in tx_b58.strip():
+        num = num * 58 + _ALPHA.index(char)
+    padding = len(tx_b58) - len(tx_b58.lstrip('1'))
+    msg_bytes = num.to_bytes((num.bit_length() + 7) // 8, 'big') if num > 0 else b''
+    msg_bytes = b'\x00' * padding + msg_bytes
+    full_tx = bytes([0x01]) + b'\x00' * 64 + msg_bytes
+    return base64.b64encode(full_tx).decode()
+
+
+def _extract_sol_sig_b58(signed_b64: str) -> str:
+    """Extract ed25519 signature from Privy-signed Solana tx and encode as base58."""
+    import base64
+    _ALPHA = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
+    signed_bytes = base64.b64decode(signed_b64)
+    sig_64 = signed_bytes[1:65]
+
+    n = int.from_bytes(sig_64, 'big')
+    result = ''
+    while n:
+        n, r = divmod(n, 58)
+        result = _ALPHA[r] + result
+    for b in sig_64:
+        if b == 0:
+            result = '1' + result
+        else:
+            break
+    return result
+
+
+def oneinch_sol_cross_chain_quote(
+    src_token: str, dst_chain: str, dst_token: str, amount: str
+) -> dict:
+    """Get a Solana→EVM cross-chain quote via 1inch Fusion+.
+
+    Returns estimated output for swapping SOL-chain tokens to an EVM chain.
+    No transaction executed — read only.
+
+    Use SOL_NATIVE = "SoNative11111111111111111111111111111111111" for native SOL.
+    USDC on Solana = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+
+    Args:
+        src_token: Source token address on Solana (use SoNative... for native SOL)
+        dst_chain: Destination EVM network — ethereum, arbitrum, base, optimism, polygon, bsc
+        dst_token: Destination token address on the EVM chain
+        amount: Amount in lamports (native SOL: 1 SOL = 1_000_000_000, USDC: 1 USDC = 1_000_000)
+    """
+    dst_id = _chain_id(dst_chain)
+    sol_wallet = _get_sol_wallet_address() or "11111111111111111111111111111111"
+
+    resp = proxied_get(f"{FUSION_BASE}/quoter/v1.1/quote/receive", params={
+        "srcChain": str(SOLANA_CHAIN_ID),
+        "dstChain": str(dst_id),
+        "srcTokenAddress": src_token,
+        "dstTokenAddress": dst_token,
+        "amount": amount,
+        "walletAddress": sol_wallet,
+        "enableEstimate": "true",
+    }, headers={"SC-CALLER-ID": SC_CALLER_ID})
+
+    if resp.status_code >= 400:
+        return {"error": f"Fusion+ API {resp.status_code}: {resp.text[:300]}"}
+
+    data = resp.json()
+    preset_info = data.get("presets", {}).get("medium", {})
+    return {
+        "src_chain": "solana",
+        "dst_chain": dst_chain,
+        "src_token": src_token,
+        "dst_token": dst_token,
+        "src_amount": amount,
+        "dst_amount_estimate": data.get("dstTokenAmount", ""),
+        "quote_id": data.get("quoteId", ""),
+        "preset_medium": {
+            "auction_duration": preset_info.get("auctionDuration"),
+            "secrets_count": preset_info.get("secretsCount", 1),
+        },
+    }
+
+
+def oneinch_sol_to_evm_swap(
+    src_token: str, dst_chain: str, dst_token: str,
+    amount: str, preset: str = "medium"
+) -> dict:
+    """Execute a Solana→EVM cross-chain swap via 1inch Fusion+.
+
+    Swaps tokens from Solana to an EVM chain (e.g. SOL→ETH, USDC@Solana→USDC@Ethereum).
+    The Solana wallet signs a Solana transaction; EVM side receives the tokens.
+
+    Flow: Quote → Build (Solana tx) → Sign with SOL wallet → Submit → Poll → Reveal secrets
+
+    ⚠️ Polling up to 5 minutes. Use sessions_spawn for background execution.
+
+    Use SOL_NATIVE = "SoNative11111111111111111111111111111111111" for native SOL.
+    USDC on Solana = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+
+    Args:
+        src_token: Source token address on Solana
+        dst_chain: Destination EVM network — ethereum, arbitrum, base, optimism, polygon, bsc
+        dst_token: Destination token address on the EVM chain
+        amount: Amount in lamports (1 SOL = 1_000_000_000, 1 USDC = 1_000_000)
+        preset: Speed — "fast", "medium" (default), or "slow"
+    """
+    dst_id = _chain_id(dst_chain)
+    if preset not in ("fast", "medium", "slow"):
+        return {"error": f"Invalid preset '{preset}'. Use: fast, medium, slow"}
+
+    sol_wallet = _get_sol_wallet_address()
+    if not sol_wallet:
+        return {"error": "No Solana wallet configured"}
+
+    evm_wallet = _get_wallet_address()
+    if not evm_wallet:
+        return {"error": "No EVM wallet configured (needed as receiver on destination chain)"}
+
+    try:
+        # 1. Quote
+        quote_resp = proxied_get(f"{FUSION_BASE}/quoter/v1.1/quote/receive", params={
+            "srcChain": str(SOLANA_CHAIN_ID),
+            "dstChain": str(dst_id),
+            "srcTokenAddress": src_token,
+            "dstTokenAddress": dst_token,
+            "amount": amount,
+            "walletAddress": sol_wallet,
+            "enableEstimate": "true",
+        }, headers={"SC-CALLER-ID": SC_CALLER_ID})
+        if quote_resp.status_code >= 400:
+            return {"error": f"Quote failed {quote_resp.status_code}: {quote_resp.text[:300]}"}
+
+        quote = quote_resp.json()
+        quote_id = quote.get("quoteId", "")
+        if not quote_id:
+            return {"error": "Quote missing quoteId — ensure enableEstimate=true"}
+
+        dst_amount_est = quote.get("dstTokenAmount", "")
+        presets_data = quote.get("presets", {})
+        preset_info = presets_data.get(preset, presets_data.get("medium", {}))
+        secrets_count = preset_info.get("secretsCount", 1)
+
+        # 2. Generate secrets
+        secrets = _generate_secrets(secrets_count)
+        secret_hashes = [_hash_secret(s) for s in secrets]
+
+        # 3. Build order — Solana path, receiver = EVM wallet
+        build_resp = proxied_post(
+            f"{FUSION_BASE}/quoter/v1.1/quote/build/solana",
+            json={"secretsHashList": secret_hashes, "preset": preset, "receiver": evm_wallet},
+            params={"quoteId": quote_id},
+            headers={"SC-CALLER-ID": SC_CALLER_ID},
+        )
+        if build_resp.status_code >= 400:
+            return {"error": f"Build failed {build_resp.status_code}: {build_resp.text[:300]}"}
+
+        build = build_resp.json()
+        order_hash = build.get("orderHash", "")
+        order_struct = build.get("order", {})
+        solana_tx = build.get("transaction", "")   # base58-encoded Solana tx
+
+        if not solana_tx:
+            return {"error": "Build API returned no Solana transaction", "build_keys": list(build.keys())}
+
+        # 4. Sign Solana transaction
+        # 1inch returns tx message in base58; Privy requires full versioned tx in base64
+        tx_b64_for_privy = _b58_to_solana_tx_b64(solana_tx)
+        import asyncio
+        from tools.wallet import _wallet_request
+        sign_result = asyncio.run(_wallet_request("POST", "/agent/sol/sign-transaction", {
+            "transaction": tx_b64_for_privy,
+        }))
+        signed_b64 = sign_result.get("signed_transaction", "")
+        if not signed_b64:
+            return {"error": f"SOL wallet sign failed: {sign_result}"}
+
+        # 5. Broadcast signed Solana tx to Solana mainnet
+        # NOTE: wallet_sol_transfer requires Solana gas sponsorship to be enabled
+        # on the platform (Privy). If not enabled, this will raise a 400 error.
+        # Contact platform support to enable Solana gas sponsorship.
+        try:
+            broadcast_result = asyncio.run(_wallet_request("POST", "/agent/sol/transfer", {
+                "transaction": signed_b64,
+                "caip2": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+            }))
+            # Extract Solana tx hash from broadcast result
+            sol_tx_hash = broadcast_result.get("hash", broadcast_result.get("signature", ""))
+        except Exception as e:
+            err_str = str(e)
+            if "gas sponsorship" in err_str.lower() or "not configured" in err_str.lower():
+                return {
+                    "error": "Platform Solana gas sponsorship not enabled",
+                    "detail": err_str,
+                    "order_hash": order_hash,
+                    "signed_tx_b64": signed_b64,
+                    "hint": "Enable Solana gas sponsorship on Privy platform config, then broadcast signed_tx_b64 to Solana mainnet",
+                }
+            raise
+
+        if not order_hash:
+            return {"error": "Submit returned no order hash"}
+
+        # 6. Poll (max 5 min)
+        MAX_POLL = 300
+        INTERVAL = 15
+        revealed = set()
+        start = time.time()
+
+        while time.time() - start < MAX_POLL:
+            # Reveal secrets when fills are ready
+            if len(revealed) < secrets_count:
+                try:
+                    fills = _fusion_get(f"/orders/v1.1/order/ready-to-accept-secret-fills/{order_hash}")
+                    for fill in fills.get("fills", []):
+                        idx = fill.get("idx", 0)
+                        if idx not in revealed and idx < len(secrets):
+                            _fusion_post("/relayer/v1.1/submit/secret", {
+                                "orderHash": order_hash,
+                                "secret": "0x" + secrets[idx].hex(),
+                            })
+                            revealed.add(idx)
+                except Exception:
+                    pass
+
+            # Check status
+            try:
+                status = _fusion_get(f"/orders/v1.1/order/status/{order_hash}")
+                order_status = status.get("status", "").lower()
+                if order_status in ("executed", "expired", "refunded", "cancelled"):
+                    return {
+                        "status": order_status,
+                        "order_hash": order_hash,
+                        "src_chain": "solana",
+                        "dst_chain": dst_chain,
+                        "src_token": src_token,
+                        "dst_token": dst_token,
+                        "src_amount": amount,
+                        "dst_amount": status.get("dstAmount", status.get("takingAmount", dst_amount_est)),
+                        "secrets_revealed": len(revealed),
+                        "elapsed_seconds": int(time.time() - start),
+                    }
+            except Exception:
+                pass
+
+            time.sleep(INTERVAL)
+
+        # Timeout
+        return {
+            "status": "submitted_polling_timeout",
+            "order_hash": order_hash,
+            "src_chain": "solana", "dst_chain": dst_chain,
             "src_amount": amount, "dst_amount_estimate": dst_amount_est,
             "message": f"Order submitted but did not confirm within {MAX_POLL}s. "
                        "Use oneinch_cross_chain_status(order_hash) to check later.",
