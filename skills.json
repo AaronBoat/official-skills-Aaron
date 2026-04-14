@@ -196,8 +196,8 @@
     {
       "name": "wallet",
       "path": "wallet/SKILL.md",
-      "version": "3.3.0",
-      "description": "Multi-chain wallet — balances, transfers, signing, policy (EVM 16 chains + Solana)"
+      "version": "3.4.0",
+      "description": "Multi-chain wallet — balances, transfers, signing, policy (EVM multi-chain + Solana)"
     },
     {
       "name": "woofi-swap",
