@@ -1,9 +1,9 @@
 ---
 name: 1inch
-version: 2.5.0
-description: 1inch DEX aggregator — same-chain swap, cross-chain Fusion+, limit orders. Native tools, no Fly dependency, no aiohttp.
+version: 3.1.0
+description: 1inch DEX aggregator — EVM same-chain swap, SOL↔EVM cross-chain Fusion+, limit orders. Native tools, no Fly dependency, no aiohttp.
 author: starchild
-tags: [1inch, dex, swap, evm, limit-order, cross-chain]
+tags: [1inch, dex, swap, evm, solana, limit-order, cross-chain]
 metadata:
   starchild:
     emoji: "🦄"
@@ -12,9 +12,9 @@ user-invocable: true
 disable-model-invocation: false
 ---
 
-# 🦄 1inch Skill v2.5.0
+# 🦄 1inch Skill v3.1.0
 
-Same-chain swap · Cross-chain Fusion+ · Limit Orders
+Same-chain swap · Cross-chain Fusion+ (EVM↔EVM + SOL↔EVM) · Limit Orders
 
 **Architecture:** All tools are native functions in `exports.py`.  
 **Signing:** `wallet_sign_transaction` / `wallet_sign_typed_data` (platform wallet, no Fly dependency).  
@@ -28,8 +28,18 @@ Same-chain swap · Cross-chain Fusion+ · Limit Orders
 IF user asks: swap / 兑换 / 换币 / buy / sell (same chain)
   → oneinch_quote (preview) → oneinch_swap (execute)
 
-IF user asks: cross-chain / 跨链 / bridge swap
+IF user asks: cross-chain / 跨链 / bridge swap (EVM↔EVM)
   → oneinch_cross_chain_quote → oneinch_cross_chain_swap
+
+IF user asks: SOL → EVM cross-chain / Solana 跨链到 ETH/ARB/BASE
+  → oneinch_sol_cross_chain_quote → oneinch_sol_to_evm_swap
+
+IF user asks: EVM → SOL cross-chain / 跨链到 Solana
+  → oneinch_cross_chain_quote(dst_chain="solana") → oneinch_cross_chain_swap
+
+⛔ IF user asks: Solana 内部 swap / SOL→USDC / Solana token swap (SAME CHAIN)
+  → DO NOT use 1inch. Use Jupiter skill instead.
+  → 1inch has NO Solana-internal swap API (no Router contract on Solana)
 
 IF user asks: limit order / 限价单 / 挂单 / 目标价格买卖
   → oneinch_create_limit_order
@@ -58,13 +68,20 @@ NEVER use wallet_transfer directly for swaps — always oneinch_swap
 | `oneinch_approve` | WRITE | Approve token for router |
 | `oneinch_swap` | WRITE | Execute swap (best route across 200+ DEXes) |
 
-### Cross-Chain Fusion+ (3 tools)
+### Cross-Chain Fusion+ EVM↔EVM / EVM→SOL (3 tools)
 
 | Tool | Type | Purpose |
 |------|------|---------|
-| `oneinch_cross_chain_quote` | READ | Cross-chain quote (gasless intent) |
+| `oneinch_cross_chain_quote` | READ | Quote EVM↔EVM or EVM→Solana |
 | `oneinch_cross_chain_status` | READ | Check Fusion+ order status |
-| `oneinch_cross_chain_swap` | WRITE | Execute cross-chain swap (long-running, ~10min) |
+| `oneinch_cross_chain_swap` | WRITE | Execute EVM↔EVM or EVM→SOL swap (~4-10min) |
+
+### Cross-Chain Fusion+ SOL→EVM (2 tools)
+
+| Tool | Type | Purpose |
+|------|------|---------|
+| `oneinch_sol_cross_chain_quote` | READ | Quote for Solana → EVM chain |
+| `oneinch_sol_to_evm_swap` | WRITE | Execute SOL→EVM swap, returns signed_tx for broadcast |
 
 ### Limit Orders / Orderbook (4 tools)
 
@@ -80,6 +97,9 @@ NEVER use wallet_transfer directly for swaps — always oneinch_swap
 ## Supported Chains
 
 `ethereum` · `arbitrum` · `base` · `optimism` · `polygon` · `bsc` · `avalanche` · `gnosis`
+
+**Cross-chain also supports Solana** (chain_id=`501`, name=`"solana"`)  
+Solana internal swap is NOT supported — use **Jupiter skill** instead.
 
 ---
 
@@ -107,12 +127,18 @@ NEVER use wallet_transfer directly for swaps — always oneinch_swap
 5. oneinch_cancel_limit_order(chain, order_hash)  # cancel if needed
 ```
 
-## Cross-Chain Flow
+## Cross-Chain Flow (EVM↔EVM or EVM→SOL)
 
 ```
 1. oneinch_cross_chain_quote(src_chain, dst_chain, src_token, dst_token, amount)
-2. oneinch_cross_chain_swap(...)   # long-running (~10min), use sessions_spawn
+2. oneinch_cross_chain_swap(...)   # long-running (~4-10min), use sessions_spawn
 3. oneinch_cross_chain_status(order_hash)  # poll if spawned
+
+# EVM → Solana: dst_chain="solana", receiver=<SOL base58 address>
+# Solana → EVM:
+1. oneinch_sol_cross_chain_quote(src_token, dst_chain, dst_token, amount)
+2. oneinch_sol_to_evm_swap(...)  # returns {order_hash, signed_tx_b64}
+   # broadcast signed_tx_b64 to Solana mainnet
 ```
 
 ---
