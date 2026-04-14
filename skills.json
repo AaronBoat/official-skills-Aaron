@@ -34,7 +34,7 @@
     {
       "name": "bitget-wallet",
       "path": "bitget-wallet/SKILL.md",
-      "version": "2026.3.12-1",
+      "version": "1.0.0",
       "description": "Interact with Bitget Wallet API for crypto market data, token info, swap quotes, RWA (real-world asset) stock trading, and security audits. Use when the user asks about wallet, token prices, market data, swap/trading quotes, RWA stock discovery and trading, token security checks, K-line charts, or token rankings on supported chains (ETH, SOL, BSC, Base, etc.)."
     },
     {
@@ -148,8 +148,8 @@
     {
       "name": "skill-creator",
       "path": "skill-creator/SKILL.md",
-      "version": "1.1.0",
-      "description": "Create and scaffold new skills with proper frontmatter, directory structure, and validation. Use when the user asks to build a new capability, integrate a new API, or extend the system with a repeatable workflow."
+      "version": "1.2.0",
+      "description": "Create and scaffold new skills with proper frontmatter, directory structure,"
     },
     {
       "name": "skillmarketplace",
