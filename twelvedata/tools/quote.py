@@ -5,23 +5,12 @@ Provides tools for fetching current market data including price, volume, and 52-
 """
 
 import logging
-from typing import Optional, List
+from typing import List
 
 from core.tool import BaseTool, ToolContext, ToolResult
-from .client import TwelveDataClient
+from .client import get_client, handle_api_error
 
 logger = logging.getLogger(__name__)
-
-# Singleton client instance
-_client: Optional[TwelveDataClient] = None
-
-
-def _get_client() -> TwelveDataClient:
-    """Get or create singleton client instance."""
-    global _client
-    if _client is None:
-        _client = TwelveDataClient()
-    return _client
 
 
 class TwelveDataQuoteTool(BaseTool):
@@ -46,6 +35,7 @@ Use this for current market analysis and live monitoring.
 
 Parameters:
 - symbol: Stock symbol (e.g., AAPL, MSFT, TSLA) or forex pair (e.g., EUR/USD, GBP/JPY)
+- prepost: (optional) Include pre/post-market data when available (US/Cboe Europe, Pro+ only)
 
 Returns: Real-time quote with all current market metrics"""
 
@@ -58,44 +48,24 @@ Returns: Real-time quote with all current market metrics"""
                     "type": "string",
                     "description": "Stock symbol (AAPL, MSFT) or forex pair (EUR/USD, GBP/JPY)",
                 },
+                "prepost": {
+                    "type": "boolean",
+                    "description": "Include pre/post-market data when available (US/Cboe Europe, Pro+ only)",
+                },
             },
             "required": ["symbol"],
         }
 
-    async def execute(
-        self,
-        ctx: ToolContext,
-        symbol: str = "",
-        **kwargs,
-    ) -> ToolResult:
+    async def execute(self, ctx: ToolContext, symbol: str = "", prepost: bool = False, **kwargs) -> ToolResult:
         if not symbol:
             return ToolResult(success=False, error="'symbol' is required")
-
         try:
-            client = _get_client()
-            data = await client.get_quote(symbol=symbol)
-
-            # Check for API errors
-            if "status" in data and data["status"] == "error":
-                return ToolResult(
-                    success=False,
-                    error=f"API Error: {data.get('message', 'Unknown error')}",
-                )
-
+            data = await get_client().get_quote(symbol=symbol, prepost=prepost)
+            if data.get("status") == "error":
+                return ToolResult(success=False, error=f"API Error: {data.get('message', 'Unknown error')}")
             return ToolResult(success=True, output=data)
         except Exception as e:
-            error_msg = str(e)
-            if "401" in error_msg:
-                return ToolResult(
-                    success=False,
-                    error="Invalid API key. Set TWELVEDATA_API_KEY environment variable.",
-                )
-            elif "429" in error_msg:
-                return ToolResult(
-                    success=False,
-                    error="Rate limit exceeded. Wait a moment and try again.",
-                )
-            return ToolResult(success=False, error=error_msg)
+            return handle_api_error(e)
 
 
 class TwelveDataQuoteBatchTool(BaseTool):
@@ -113,6 +83,7 @@ Efficient way to fetch market data for multiple symbols simultaneously. Maximum 
 
 Parameters:
 - symbols: Array of stock symbols or forex pairs (max 120)
+- prepost: (optional) Include pre/post-market data when available (US/Cboe Europe, Pro+ only)
 
 Returns: Quotes for all requested symbols"""
 
@@ -128,44 +99,24 @@ Returns: Quotes for all requested symbols"""
                     "minItems": 1,
                     "maxItems": 120,
                 },
+                "prepost": {
+                    "type": "boolean",
+                    "description": "Include pre/post-market data when available (US/Cboe Europe, Pro+ only)",
+                },
             },
             "required": ["symbols"],
         }
 
-    async def execute(
-        self,
-        ctx: ToolContext,
-        symbols: List[str] = None,
-        **kwargs,
-    ) -> ToolResult:
-        if not symbols or len(symbols) == 0:
+    async def execute(self, ctx: ToolContext, symbols: List[str] = None, prepost: bool = False, **kwargs) -> ToolResult:
+        if not symbols:
             return ToolResult(success=False, error="'symbols' array is required and must not be empty")
-
         try:
-            client = _get_client()
-            data = await client.get_quote_batch(symbols=symbols)
-
-            # Check for API errors
-            if "status" in data and data["status"] == "error":
-                return ToolResult(
-                    success=False,
-                    error=f"API Error: {data.get('message', 'Unknown error')}",
-                )
-
+            data = await get_client().get_quote_batch(symbols=symbols, prepost=prepost)
+            if data.get("status") == "error":
+                return ToolResult(success=False, error=f"API Error: {data.get('message', 'Unknown error')}")
             return ToolResult(success=True, output=data)
         except Exception as e:
-            error_msg = str(e)
-            if "401" in error_msg:
-                return ToolResult(
-                    success=False,
-                    error="Invalid API key. Set TWELVEDATA_API_KEY environment variable.",
-                )
-            elif "429" in error_msg:
-                return ToolResult(
-                    success=False,
-                    error="Rate limit exceeded. Wait a moment and try again.",
-                )
-            return ToolResult(success=False, error=error_msg)
+            return handle_api_error(e)
 
 
 class TwelveDataPriceBatchTool(BaseTool):
@@ -183,6 +134,7 @@ Lightweight endpoint for quick price checks on multiple symbols. Maximum 120 sym
 
 Parameters:
 - symbols: Array of stock symbols or forex pairs (max 120)
+- prepost: (optional) Include pre/post-market data when available (US/Cboe Europe, Pro+ only)
 
 Returns: Current prices for all requested symbols"""
 
@@ -198,41 +150,21 @@ Returns: Current prices for all requested symbols"""
                     "minItems": 1,
                     "maxItems": 120,
                 },
+                "prepost": {
+                    "type": "boolean",
+                    "description": "Include pre/post-market data when available (US/Cboe Europe, Pro+ only)",
+                },
             },
             "required": ["symbols"],
         }
 
-    async def execute(
-        self,
-        ctx: ToolContext,
-        symbols: List[str] = None,
-        **kwargs,
-    ) -> ToolResult:
-        if not symbols or len(symbols) == 0:
+    async def execute(self, ctx: ToolContext, symbols: List[str] = None, prepost: bool = False, **kwargs) -> ToolResult:
+        if not symbols:
             return ToolResult(success=False, error="'symbols' array is required and must not be empty")
-
         try:
-            client = _get_client()
-            data = await client.get_price_batch(symbols=symbols)
-
-            # Check for API errors
-            if "status" in data and data["status"] == "error":
-                return ToolResult(
-                    success=False,
-                    error=f"API Error: {data.get('message', 'Unknown error')}",
-                )
-
+            data = await get_client().get_price_batch(symbols=symbols, prepost=prepost)
+            if data.get("status") == "error":
+                return ToolResult(success=False, error=f"API Error: {data.get('message', 'Unknown error')}")
             return ToolResult(success=True, output=data)
         except Exception as e:
-            error_msg = str(e)
-            if "401" in error_msg:
-                return ToolResult(
-                    success=False,
-                    error="Invalid API key. Set TWELVEDATA_API_KEY environment variable.",
-                )
-            elif "429" in error_msg:
-                return ToolResult(
-                    success=False,
-                    error="Rate limit exceeded. Wait a moment and try again.",
-                )
-            return ToolResult(success=False, error=error_msg)
+            return handle_api_error(e)

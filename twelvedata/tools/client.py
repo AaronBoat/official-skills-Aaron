@@ -26,8 +26,36 @@ from typing import Any, Dict, Optional, List
 import aiohttp
 
 from core.http_client import get_aiohttp_proxy_kwargs
+from core.tool import ToolResult
 
 logger = logging.getLogger(__name__)
+
+# ── Singleton client ──────────────────────────────────────────────
+_client: Optional["TwelveDataClient"] = None
+
+
+def get_client() -> "TwelveDataClient":
+    """Return a shared TwelveDataClient singleton."""
+    global _client
+    if _client is None:
+        _client = TwelveDataClient()
+    return _client
+
+
+def handle_api_error(e: Exception) -> ToolResult:
+    """Unified error handler for all Twelve Data tool execute() methods."""
+    error_str = str(e)
+    if "401" in error_str:
+        return ToolResult(
+            success=False,
+            error="API key error. The TWELVEDATA_API_KEY may be invalid or missing.",
+        )
+    if "429" in error_str:
+        return ToolResult(
+            success=False,
+            error="Rate limit exceeded. Please wait before making more requests.",
+        )
+    return ToolResult(success=False, error=f"Twelve Data API error: {error_str}")
 
 # API Configuration
 BASE_URL = "https://api.twelvedata.com"
@@ -87,6 +115,7 @@ class TwelveDataClient:
         outputsize: int = 30,
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
+        prepost: bool = False,
     ) -> dict:
         """
         Get historical OHLCV time series data.
@@ -111,42 +140,51 @@ class TwelveDataClient:
             params["start_date"] = start_date
         if end_date:
             params["end_date"] = end_date
+        if prepost:
+            params["prepost"] = "true"
 
         return await self._get("time_series", params)
 
-    async def get_quote(self, symbol: str) -> dict:
+    async def get_quote(self, symbol: str, prepost: bool = False) -> dict:
         """
         Get real-time quote for a stock or forex pair.
 
         Args:
             symbol: Stock symbol (AAPL) or forex pair (EUR/USD)
+            prepost: Include pre/post-market data when available (US/Cboe Europe, Pro+)
 
         Returns:
             dict with current price, open, high, low, volume, change, etc.
         """
         params = {"symbol": symbol}
+        if prepost:
+            params["prepost"] = "true"
         return await self._get("quote", params)
 
-    async def get_price(self, symbol: str) -> dict:
+    async def get_price(self, symbol: str, prepost: bool = False) -> dict:
         """
         Get latest trading price.
 
         Args:
             symbol: Stock symbol or forex pair
+            prepost: Include pre/post-market data when available (US/Cboe Europe, Pro+)
 
         Returns:
             dict with price value
         """
         params = {"symbol": symbol}
+        if prepost:
+            params["prepost"] = "true"
         return await self._get("price", params)
 
-    async def get_eod(self, symbol: str, date: Optional[str] = None) -> dict:
+    async def get_eod(self, symbol: str, date: Optional[str] = None, prepost: bool = False) -> dict:
         """
         Get end-of-day price.
 
         Args:
             symbol: Stock symbol or forex pair
             date: Specific date in YYYY-MM-DD format (optional, defaults to latest)
+            prepost: Include pre/post-market data when available (US/Cboe Europe, Pro+)
 
         Returns:
             dict with EOD price data
@@ -154,6 +192,8 @@ class TwelveDataClient:
         params = {"symbol": symbol}
         if date:
             params["date"] = date
+        if prepost:
+            params["prepost"] = "true"
         return await self._get("eod", params)
 
     # ── Reference Data ───────────────────────────────────────────────────
@@ -213,12 +253,13 @@ class TwelveDataClient:
 
     # ── Batch Requests ───────────────────────────────────────────────────
 
-    async def get_quote_batch(self, symbols: List[str]) -> dict:
+    async def get_quote_batch(self, symbols: List[str], prepost: bool = False) -> dict:
         """
         Get quotes for multiple symbols in one request.
 
         Args:
             symbols: List of stock symbols or forex pairs (max 120)
+            prepost: Include pre/post-market data when available (US/Cboe Europe, Pro+)
 
         Returns:
             dict with quotes for each symbol
@@ -228,14 +269,17 @@ class TwelveDataClient:
             symbols = symbols[:120]
 
         params = {"symbol": ",".join(symbols)}
+        if prepost:
+            params["prepost"] = "true"
         return await self._get("quote", params)
 
-    async def get_price_batch(self, symbols: List[str]) -> dict:
+    async def get_price_batch(self, symbols: List[str], prepost: bool = False) -> dict:
         """
         Get prices for multiple symbols in one request.
 
         Args:
             symbols: List of stock symbols or forex pairs (max 120)
+            prepost: Include pre/post-market data when available (US/Cboe Europe, Pro+)
 
         Returns:
             dict with prices for each symbol
@@ -245,4 +289,6 @@ class TwelveDataClient:
             symbols = symbols[:120]
 
         params = {"symbol": ",".join(symbols)}
+        if prepost:
+            params["prepost"] = "true"
         return await self._get("price", params)

@@ -1,345 +1,137 @@
 ---
 name: wallet
-version: 1.1.0
-description: Multi-chain wallet operations - balance, transfers, signing, policy management, and transaction history via Privy Server Wallets (EVM + Solana)
+version: 3.4.0
+description: "Multi-chain wallet — balances, transfers, signing, policy (EVM multi-chain + Solana)"
+author: starchild
+tags: [wallet, evm, solana, transfer, sign, policy, debank, birdeye]
 tools:
   - wallet_info
+  - wallet_balance
+  - wallet_sol_balance
+  - wallet_get_all_balances
   - wallet_transfer
   - wallet_sign_transaction
   - wallet_sign
   - wallet_sign_typed_data
-  - wallet_balance
-  - wallet_get_all_balances
   - wallet_transactions
   - wallet_sol_transfer
   - wallet_sol_sign_transaction
   - wallet_sol_sign
-  - wallet_sol_balance
   - wallet_sol_transactions
   - wallet_get_policy
   - wallet_propose_policy
-
-metadata:
-  starchild:
-    emoji: "💰"
-    skillKey: wallet
-    requires:
-      env: [WALLET_SERVICE_URL]
-
-user-invocable: true
-disable-model-invocation: false
+tool_module: wallet.wallet
 ---
 
-# Wallet
+# 💰 Wallet Skill
 
-Interact with this agent's on-chain wallets. Each agent has one wallet per chain (EVM + Solana). Supports balance queries, transfers (policy-gated), message signing, and transaction history.
+Multi-chain wallet for EVM (DeBank-supported chains) + Solana. Balances, transfers, signing, policy management.
 
-Authentication is automatic via Fly OIDC token — no API keys or wallet addresses needed. Wallets are bound to this machine at deploy time.
-
-## Available Tools (14)
-
-### Multi-Chain Tools
+## Tools
 
 | Tool | Description |
 |------|-------------|
-| `wallet_info` | Get all wallet addresses and chain types |
-| `wallet_get_all_balances` | **PRIMARY TOOL** - Get complete portfolio across ALL chains (EVM + Solana) with USD values |
-| `wallet_get_policy` | Get current policy status (enabled/disabled) and rules for a chain |
+| `wallet_info` | Get all wallet addresses |
+| `wallet_balance` | EVM balance on a chain (DeBank) |
+| `wallet_sol_balance` | Solana balance (Birdeye) |
+| `wallet_get_all_balances` | All chains at once |
+| `wallet_transfer` | **Broadcast** EVM tx (gas sponsored) |
+| `wallet_sign_transaction` | Sign EVM tx (no broadcast) |
+| `wallet_sign` | EIP-191 message signing |
+| `wallet_sign_typed_data` | EIP-712 typed data signing |
+| `wallet_transactions` | EVM tx history |
+| `wallet_sol_transfer` | **Broadcast** Solana tx |
+| `wallet_sol_sign_transaction` | Sign Solana tx (no broadcast) |
+| `wallet_sol_sign` | Solana message signing |
+| `wallet_sol_transactions` | Solana tx history |
+| `wallet_get_policy` | Check policy status |
+| `wallet_propose_policy` | Propose policy (sends to UI) |
 
-### EVM Tools
+## Key Facts
 
-| Tool | Description |
-|------|-------------|
-| `wallet_balance` | Get ETH/token balances on a specific chain (requires `chain` parameter) |
-| `wallet_transactions` | Get recent EVM transaction history |
-| `wallet_transfer` | Sign and broadcast a transaction on-chain (policy-gated). Funds leave the wallet. |
-| `wallet_sign_transaction` | Sign a transaction WITHOUT broadcasting (returns RLP-encoded signed tx, nothing sent on-chain) |
-| `wallet_sign` | Sign a message (EIP-191 personal_sign) |
-| `wallet_sign_typed_data` | Sign EIP-712 structured data (permits, orders, etc.) |
+- **Gas is sponsored** on EVM chains — user doesn't need ETH for gas
+- **Policy default: OFF** (allow-all). Only when user enables policy do transactions need UI confirmation
+- **Supported EVM chains**: All DeBank-supported chains. Common names auto-mapped to DeBank chain IDs (e.g. `avalanche` → `avax`, `bsc` → `bsc`, `zksync` → `era`). For full chain list call `db_chain_list()` from the debank skill. The 16 common chains (ethereum, base, arbitrum, optimism, polygon, linea, bsc, avalanche, fantom, gnosis, zksync, scroll, blast, mantle, celo, aurora) have built-in fallback mapping.
+- **Balance sources**: DeBank (EVM), Birdeye (Solana), wallet-service (fallback)
 
-### Solana Tools
+## Workflow
 
-| Tool | Description |
-|------|-------------|
-| `wallet_sol_balance` | Get SOL/SPL token balances with USD values |
-| `wallet_sol_transactions` | Get recent Solana transaction history |
-| `wallet_sol_transfer` | Sign and broadcast a Solana transaction on-chain (policy-gated). Funds leave the wallet. |
-| `wallet_sol_sign_transaction` | Sign a Solana transaction WITHOUT broadcasting (returns base64 signed tx, nothing sent on-chain) |
-| `wallet_sol_sign` | Sign a message with the Solana wallet |
+### Check Balances
+1. Single chain: `wallet_balance(chain="base")` or `wallet_sol_balance()`
+2. All at once: `wallet_get_all_balances()`
 
----
+### Send Transaction (EVM)
+1. Check balance: `wallet_balance(chain=...)`
+2. Transfer: `wallet_transfer(to=..., amount=..., chain_id=...)`
+3. Verify: `wallet_transactions()` or check balance again
 
-## Tool Usage Examples
+### Policy Management
+1. Check: `wallet_get_policy(chain_type="ethereum")`
+2. If user wants to enable: `wallet_propose_policy(chain_type, rules, title, description)`
+3. User confirms in UI → policy applied
 
-### Check Wallet Info (All Chains)
-
+### Standard Wildcard Policy (when needed)
 ```
-wallet_info()
-```
-
-Returns: list of `wallets` with `wallet_address` and `chain_type` for each active wallet.
-
-Use this first to see all available wallets before any operations.
-
-### EVM — Check Balance
-
-**IMPORTANT: Always specify the `chain` parameter! To check all chains at once, use `wallet_get_all_balances` instead.**
-
-```
-wallet_balance(chain="ethereum")  # Get ALL tokens on Ethereum
-wallet_balance(chain="base", asset="usdc")  # Check specific asset on Base
-wallet_balance(chain="polygon", asset="pol")  # Polygon requires explicit asset
+rules = [
+  {"name": "Deny key export", "method": "exportPrivateKey", "conditions": [], "action": "DENY"},
+  {"name": "Allow all", "method": "*", "conditions": [], "action": "ALLOW"},
+]
 ```
 
-**chain parameter is REQUIRED.** Valid chains: `ethereum`, `base`, `arbitrum`, `optimism`, `polygon`, `linea`
+### Policy Modes — CRITICAL DECISION TABLE
 
-**Asset naming:**
-- For Polygon native token, use `"pol"` NOT `"matic"`
-- Use lowercase symbolic names like `"usdc"`, `"weth"`, `"usdt"`
-- DO NOT pass contract addresses (e.g., `"0x..."`), use symbols only
-- Omit `asset` parameter to discover ALL tokens on the specified chain
+⚠️ **DENY > ALLOW in Privy.** `DENY *` overrides ALL ALLOW rules. NEVER mix them.
 
-**Known Limitation - Polygon:**
-The Polygon chain requires explicit asset parameters. Instead of:
-```
-wallet_balance(chain="polygon")  # ❌ May fail with "eth not supported"
-```
+| Mode | Rules | Effect |
+|------|-------|--------|
+| **Allow-all** (default) | `DENY exportPrivateKey` + `ALLOW *` | Everything allowed except key export |
+| **Deny-all** (lockdown) | `DENY exportPrivateKey` + `DENY *` | Nothing works. No ALLOW rules! |
+| **Whitelist** (selective) | `DENY exportPrivateKey` + specific ALLOW rules only | Only whitelisted ops work, rest implicitly denied |
 
-Use:
+### Mode 1: Allow-All (Standard Wildcard)
 ```
-wallet_balance(chain="polygon", asset="pol")  # ✅ Check POL balance
-wallet_balance(chain="polygon", asset="usdc")  # ✅ Check USDC balance
+rules = [
+  {"name": "Deny key export", "method": "exportPrivateKey", "conditions": [], "action": "DENY"},
+  {"name": "Allow all", "method": "*", "conditions": [], "action": "ALLOW"},
+]
 ```
 
-For complete Polygon portfolio, use `wallet_get_all_balances()` which handles this correctly.
-
-For checking balances across ALL chains in one call, use `wallet_get_all_balances()` instead.
-
-### Multi-Chain — Get All Balances
-
+### Mode 2: Deny-All (Lockdown)
 ```
-wallet_get_all_balances()
-```
-
-**This is the PRIMARY tool for comprehensive balance checks.**
-
-Automatically checks ALL supported chains (Ethereum, Base, Arbitrum, Optimism, Polygon, Linea, Solana) and returns complete portfolio with USD values.
-
-Use this instead of calling `wallet_balance()` multiple times for different chains.
-
-### EVM — Query Transaction History
-
-```
-wallet_transactions()
-wallet_transactions(chain="ethereum", asset="eth", limit=10)
-wallet_transactions(limit=50)
+rules = [
+  {"name": "Deny key export", "method": "exportPrivateKey", "conditions": [], "action": "DENY"},
+  {"name": "Deny all actions", "method": "*", "conditions": [], "action": "DENY"},
+]
+# ⚠️ NO ALLOW rules here — DENY * would override them!
 ```
 
-Defaults: `chain="ethereum"`, `asset="eth"`, `limit=20` (max 100).
-
-Returns: list of transactions with `tx_hash`, `from`, `to`, `amount`, `status`, `timestamp`.
-
-### EVM — Transfer Funds / Contract Calls
-
+### Mode 3: Whitelist (Selective Allow)
 ```
-wallet_transfer(to="0xRecipientAddress", amount="1000000000000000000")
-wallet_transfer(to="0xRecipientAddress", amount="1000000000000000000", chain_id=8453)
-wallet_transfer(to="0xContractAddress", amount="0", data="0xa9059cbb000000...", chain_id=8453)
-```
-
-- `to`: Target wallet or contract address (0x...)
-- `amount`: Amount in **wei** (not ETH). `"1000000000000000000"` = 1 ETH. Use `"0"` for contract calls that don't send ETH.
-- `chain_id`: Chain ID (default: 1 = Ethereum mainnet, 8453 = Base, 10 = Optimism)
-- `data`: Hex-encoded calldata for contract calls (e.g. ERC-20 transfer, swap). Optional — omit for simple ETH transfers.
-- `gas_limit`: Gas limit (decimal string). Optional — Privy estimates if omitted.
-- `gas_price`: Gas price in wei (decimal string, for legacy transactions). Optional.
-- `max_fee_per_gas`: Max fee per gas in wei (decimal string, for EIP-1559 transactions). Optional.
-- `max_priority_fee_per_gas`: Max priority fee in wei (decimal string, for EIP-1559 transactions). Optional.
-- `nonce`: Transaction nonce (decimal string). Optional — auto-determined if omitted.
-- `tx_type`: Transaction type integer. `0`=legacy, `1`=EIP-2930, `2`=EIP-1559, `4`=EIP-7702. Optional.
-
-**Policy enforcement**: If a policy is enabled, transfers are gated by Privy TEE policy rules. Policy violations return an error. If no policy is attached (default), all transfers are allowed.
-
-### EVM — Sign Transaction (without broadcasting)
-
-```
-wallet_sign_transaction(to="0xRecipientAddress", amount="1000000000000000000")
-wallet_sign_transaction(to="0xRecipientAddress", amount="1000000000000000000", chain_id=8453)
-wallet_sign_transaction(to="0xContractAddress", amount="0", data="0xa9059cbb000000...", chain_id=8453, tx_type=2, max_fee_per_gas="30000000000", max_priority_fee_per_gas="2000000000")
+rules = [
+  {"name": "Deny key export", "method": "exportPrivateKey", "conditions": [], "action": "DENY"},
+  {"name": "Allow transfer to Uniswap", "method": "eth_sendTransaction", "conditions": [
+    {"field_source": "ethereum_transaction", "field": "to", "operator": "eq", "value": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"}
+  ], "action": "ALLOW"},
+]
+# ⚠️ NO "DENY *" here! enabled=true already denies everything not ALLOWed.
+# Adding DENY * would override the ALLOW rules above (DENY > ALLOW).
 ```
 
-Same parameters as `wallet_transfer`, plus `max_fee_per_gas` and `max_priority_fee_per_gas` for EIP-1559.
+## Privy Policy Rules — Key Constraints
 
-Returns: `signed_transaction` (RLP-encoded hex), `encoding` ("rlp")
+| Rule | Details |
+|------|---------|
+| **Default behavior** | `enabled=true` → deny-all unless explicitly ALLOWed |
+| **DENY > ALLOW** | DENY always wins when both match |
+| **Empty conditions** | Only `exportPrivateKey` and `*` (wildcard) allow `conditions: []` |
+| **TX methods need conditions** | `eth_sendTransaction`, `eth_signTransaction`, `eth_signTypedData_v4`, `eth_signUserOperation`, `signAndSendTransaction`, etc. ALL require ≥1 condition |
+| **Valid field_sources** | EVM: `ethereum_transaction` (to/value/chain_id), `ethereum_calldata` (function_name), `ethereum_typed_data_domain` (chainId/verifyingContract), `ethereum_typed_data_message`, `system` |
+| **Valid operators** | `eq`, `gt`, `gte`, `lt`, `lte`, `in` (array, max 100 values) |
+| **Dual chain** | Call `wallet_propose_policy` TWICE for EVM + Solana |
 
-Use cases: pre-sign transactions for later submission, multi-step flows, external broadcast.
+## Gotchas
 
-### EVM — Sign a Message
-
-```
-wallet_sign(message="Hello World")
-wallet_sign(message="Verify ownership of this wallet")
-```
-
-Returns: `signature` (EIP-191 personal_sign format)
-
-Use cases: prove wallet ownership, sign off-chain messages, create verifiable attestations.
-
-### EVM — Sign EIP-712 Typed Data
-
-```
-wallet_sign_typed_data(
-  domain={"name": "MyDApp", "version": "1", "chainId": 1, "verifyingContract": "0x..."},
-  types={"Person": [{"name": "name", "type": "string"}, {"name": "wallet", "type": "address"}]},
-  primaryType="Person",
-  message={"name": "Alice", "wallet": "0x..."}
-)
-```
-
-- `domain`: EIP-712 domain separator (name, version, chainId, verifyingContract)
-- `types`: Type definitions — mapping of type name to array of `{name, type}` fields
-- `primaryType`: The primary type being signed (must exist in `types`)
-- `message`: The structured data to sign (must match `primaryType` schema)
-
-Returns: `signature` (hex)
-
-Use cases: EIP-2612 permit approvals, off-chain order signing (Seaport, 0x), gasless approvals, structured attestations.
-
-### Solana — Check Balance
-
-```
-wallet_sol_balance()
-wallet_sol_balance(chain="solana", asset="sol")
-```
-
-All parameters are optional. Returns balances with USD-equivalent values.
-
-### Solana — Query Transaction History
-
-```
-wallet_sol_transactions()
-wallet_sol_transactions(chain="solana", asset="sol", limit=10)
-```
-
-Defaults: `chain="solana"`, `asset="sol"`, `limit=20` (max 100).
-
-### Solana — Sign and Send Transaction
-
-```
-wallet_sol_transfer(transaction="<base64-encoded-transaction>")
-wallet_sol_transfer(transaction="<base64-encoded-transaction>", caip2="solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1")
-```
-
-- `transaction`: Base64-encoded serialized Solana transaction
-- `caip2`: CAIP-2 chain identifier (default: `"solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp"` for mainnet, use `"solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1"` for devnet)
-
-**Policy enforcement**: Same as EVM — if a policy is enabled, transfers are gated by Privy TEE policy rules.
-
-### Solana — Sign Transaction (without broadcasting)
-
-```
-wallet_sol_sign_transaction(transaction="<base64-encoded-transaction>")
-```
-
-- `transaction`: Base64-encoded serialized Solana transaction
-
-Returns: `signed_transaction` (base64), `encoding` ("base64")
-
-Use cases: pre-sign transactions for later submission, multi-step flows, external broadcast.
-
-### Solana — Sign a Message
-
-```
-wallet_sol_sign(message="<base64-encoded-message>")
-```
-
-Returns: `signature` (base64)
-
----
-
-## Common Workflows
-
-### Pre-Transfer Check (EVM)
-
-1. `wallet_info()` — Confirm wallets are active
-2. `wallet_balance(chain="ethereum")` — Check available funds on specific chain (or use `wallet_get_all_balances()`)
-3. `wallet_transfer(to="0x...", amount="...")` — Execute transfer
-4. `wallet_transactions(limit=1)` — Confirm transaction status
-
-### Pre-Transfer Check (Solana)
-
-1. `wallet_info()` — Confirm wallets are active
-2. `wallet_sol_balance()` — Check available SOL funds
-3. `wallet_sol_transfer(transaction="...")` — Sign and send transaction
-4. `wallet_sol_transactions(limit=1)` — Confirm transaction status
-
-### Monitor All Wallet Activity
-
-1. `wallet_info()` — See all wallets
-2. `wallet_get_all_balances()` — Complete portfolio across ALL chains (EVM + Solana)
-3. `wallet_transactions(limit=20)` — Recent EVM activity
-4. `wallet_sol_transactions(limit=20)` — Recent Solana activity
-
-### Prove Wallet Ownership
-
-1. `wallet_info()` — Get all wallet addresses
-2. `wallet_sign(message="I am the owner of this wallet at timestamp 1234567890")` — EVM proof
-3. `wallet_sol_sign(message="<base64-encoded-message>")` — Solana proof
-
----
-
-## Wei Conversion Reference (EVM)
-
-Amounts are always in **wei** (smallest unit). Conversion table:
-
-| Amount | Wei String |
-|--------|-----------|
-| 0.001 ETH | `"1000000000000000"` |
-| 0.01 ETH | `"10000000000000000"` |
-| 0.1 ETH | `"100000000000000000"` |
-| 1 ETH | `"1000000000000000000"` |
-| 10 ETH | `"10000000000000000000"` |
-
-Formula: `wei = eth_amount * 10^18`
-
-## Chain ID Reference (EVM)
-
-| Chain | ID | CAIP-2 | Native Asset |
-|-------|----|--------|--------------|
-| Ethereum Mainnet | 1 | `eip155:1` | `eth` |
-| Ethereum Sepolia | 11155111 | `eip155:11155111` | `eth` |
-| Base | 8453 | `eip155:8453` | `eth` |
-| Optimism | 10 | `eip155:10` | `eth` |
-| Arbitrum One | 42161 | `eip155:42161` | `eth` |
-| Polygon | 137 | `eip155:137` | **`pol`** (NOT "matic") |
-| Linea | 59144 | `eip155:59144` | `eth` |
-
-## Solana CAIP-2 Reference
-
-| Network | CAIP-2 |
-|---------|--------|
-| Solana Mainnet | `solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp` |
-| Solana Devnet | `solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1` |
-
----
-
-## Policy & Security
-
-- **Privy TEE enforced**: Even if the agent is compromised, transfers that violate policy are rejected at the Privy TEE layer
-- **Per-wallet policy**: Each chain's wallet has its own independent policy
-- **Flexible rules**: Policy rules are configured via Privy's rule system (address allowlists, value limits, method restrictions, etc.)
-- **Allow-all default**: New wallets have NO policy — all transactions are allowed. Policy is opt-in.
-- **Once enabled**: Policy switches to deny-by-default — only transactions matching ALLOW rules are permitted
-- **Pass-through**: Policy rules are managed directly via Privy (source of truth), no local cache
-
-Policy is optional and managed by the user through the frontend. The agent can propose policy rules via `wallet_propose_policy`, but the user must approve before they take effect.
-
-## Error Handling
-
-| Error | Meaning | Action |
-|-------|---------|--------|
-| "Not running on a Fly Machine" | Wallet requires Fly deployment | Cannot use wallet locally |
-| "Policy violation: ..." | Transfer rejected by Privy policy | Check whitelist and daily limits |
-| "HTTP 404" | Wallet not found for this machine | Wallet may not be created yet |
-| "HTTP 403" | OIDC token invalid or expired | Token will auto-refresh, retry |
-
+- `wallet_propose_policy` sends SSE event to frontend — needs streaming context
+- DeBank/Birdeye keys are auto-injected by sc-proxy
+- `wallet_balance` requires `chain` param — use `wallet_get_all_balances` for discovery
+- For both EVM + Solana policy, call `wallet_propose_policy` TWICE

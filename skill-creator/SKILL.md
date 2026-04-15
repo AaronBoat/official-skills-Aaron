@@ -1,22 +1,17 @@
 ---
 name: skill-creator
-version: 1.0.0
-description: "Create and scaffold new skills with proper frontmatter, directory structure, and validation. Use when the user asks to build a new capability, integrate a new API, or extend the system with a repeatable workflow."
-
+version: 1.2.0
+description: Create and scaffold new skills with proper frontmatter, directory structure,
+  and validation. Use when the user asks to build a new capability, integrate a new
+  API, or extend the system with a repeatable workflow.
 metadata:
   starchild:
-    emoji: "🛠️"
+    emoji: "\U0001F6E0\uFE0F"
     skillKey: skill-creator
-
 user-invocable: true
 ---
 
-# Skill Creator
-
-Create new skills to permanently extend your capabilities.
-
 ## Core Principles
-
 **Concise is key.** The context window is a shared resource between the system prompt, skills, conversation history, and your reasoning. Every line in a SKILL.md competes with everything else. Only add what you don't already know — don't document tool parameters visible in the system prompt, don't prescribe step-by-step workflows for things you can figure out. Focus on domain knowledge, interpretation guides, decision frameworks, and gotchas.
 
 **Progressive disclosure.** Skills load in three levels:
@@ -35,7 +30,6 @@ This means: keep the SKILL.md body lean (< 500 lines). Put detailed API docs in 
 Default assumption: you are already smart. Only add context you don't already have.
 
 ## Anatomy of a Skill
-
 ```
 my-skill/
 ├── SKILL.md          # Required: Frontmatter + instructions
@@ -57,7 +51,6 @@ my-skill/
 | `assets/` | Never | Templates, images, data files used in output |
 
 ## Creating a Skill
-
 ### Step 1: Understand the Request
 
 Before scaffolding, understand what you're building:
@@ -101,7 +94,7 @@ Before writing, decide what goes where:
 
 ### Step 4: Write the SKILL.md
 
-Use `read_file` and `write_file` to complete the generated SKILL.md:
+Plan the content first — frontmatter trigger, body structure, freedom level. Then:
 
 1. **Frontmatter** — Update description (CRITICAL trigger), add requirements, set emoji
 2. **Body** — Write for the agent, not the user. Short paragraphs over bullet walls. Opinions over hedging.
@@ -113,27 +106,49 @@ Design patterns for the body:
 - **Reference/guidelines** — Rules and frameworks (strategy: core truths, conversation style, when to pull data)
 - **Capabilities-based** — Organized by what the skill can do (market-data: price tools / derivatives tools / social tools)
 
-### Step 5: Validate
+### Step 5: Create / Update via `skill_manage`
+
+**`skill_manage` is the primary workflow** — it validates frontmatter, runs a security scan, and auto-reloads the cache. Do NOT use `write_file` as the main path.
+
+**Creating a new skill:**
+```python
+skill_manage(action="create", name="my-skill", content="---\nname: my-skill\n...")
+```
+
+**Patching an existing skill (preferred for targeted changes):**
+```python
+# Always read_file first to get exact whitespace/content
+skill_manage(action="patch", name="my-skill", old_string="exact old text", new_string="new text")
+```
+
+**Full rewrite of existing skill:**
+```python
+skill_manage(action="edit", name="my-skill", content="---\nname: my-skill\n...")
+```
+
+⚠️ **Known gotchas:**
+- `create` errors if skill already exists → use `edit` or `patch` instead.
+- `edit`/`patch` errors if skill does NOT exist → use `create` first.
+- `patch` requires exact `old_string` match (whitespace included) → always `read_file` before patching.
+- `execute()` must accept `**kwargs` — if you see `unexpected keyword argument 'action'`, it's a bug in the tool implementation (fix: `def execute(self, **kwargs)`).
+
+**Fallback only** — if `skill_manage` is unavailable, use `write_file` + `skill_refresh()` manually.
+
+### Step 6: Validate
 
 ```bash
 python skills/skill-creator/scripts/validate_skill.py ./workspace/skills/my-new-skill
 ```
 
-### Step 6: Refresh
-
-Call the `skill_refresh` tool to make the skill available:
-
-```
-skill_refresh()
-```
+After `skill_manage`, validate is optional (auto-reloaded), but run it to catch schema issues early.
 
 ## Frontmatter Format
-
 The frontmatter uses `metadata.starchild` for Star Child-specific fields:
 
 ```yaml
 ---
 name: skill-name
+version: 1.0.0
 description: "What this skill does. Use when [specific trigger scenarios]."
 
 metadata:
@@ -161,6 +176,7 @@ disable-model-invocation: false
 | Field | Location | Required | Purpose |
 |-------|----------|----------|---------|
 | `name` | top-level | Yes | Skill identifier (lowercase hyphen-case) |
+| `version` | top-level | Yes | Semantic version (e.g. `1.0.0`). Required for publishing. Always include. |
 | `description` | top-level | Yes | Trigger text — when should the agent use this? |
 | `emoji` | `metadata.starchild` | No | Display emoji |
 | `skillKey` | `metadata.starchild` | No | Dedup key |
@@ -172,12 +188,11 @@ disable-model-invocation: false
 | `disable-model-invocation` | top-level | No | Hide from `<available_skills>` (default: false) |
 
 ## On-Chain Skills — Wallet Policy Prerequisite
-
 If the skill involves **any on-chain operations** (sending transactions, token approvals, swaps, bridging, signing, deposits, withdrawals, smart contract interactions), add a Prerequisites section near the top of the SKILL.md:
 
 ```markdown
-## Prerequisites — Wallet Policy
 
+## Prerequisites — Wallet Policy
 Before executing any [operation], the wallet policy must be active.
 Load the **wallet-policy** skill and propose the standard wildcard
 policy (deny key export + allow `*`). This covers all [skill-name]
@@ -187,7 +202,6 @@ operations across all chains.
 This ensures the agent proposes a wallet policy **before** attempting any transaction. Without it, the first transaction will fail with a policy violation.
 
 ## What NOT to Include
-
 - **README.md** — The SKILL.md IS the readme. Don't duplicate.
 - **CHANGELOG.md** — Skills aren't versioned packages.
 - **Docs the agent already has** — Don't repeat tool descriptions from the system prompt.
@@ -195,7 +209,6 @@ This ensures the agent proposes a wallet policy **before** attempting any transa
 - **Generic programming advice** — "Use error handling" is noise. Specific gotchas are signal.
 
 ## Best Practices
-
 1. **Description is the trigger.** This is how the agent decides to activate your skill. Include "Use when..." with specific scenarios. Bad: "Trading utilities." Good: "Test trading strategies against real historical data. Use when a strategy needs validation or before committing to a trade approach."
 
 2. **Write for the agent, not the user.** The skill is instructions for the AI. Use direct language: "You generate charts" not "This skill can be used to generate charts."
