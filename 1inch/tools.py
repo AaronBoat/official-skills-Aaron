@@ -89,8 +89,11 @@ Returns: dstAmount (estimated output in wei), gas estimate, route protocols"""
         if not all([chain, src, dst, amount]):
             return ToolResult(success=False, error="chain, src, dst, amount are all required")
         try:
-            data = _get_client(chain).get_quote(src, dst, amount)
+            data = await _get_client(chain).get_quote(src, dst, amount)
             return ToolResult(success=True, output=data)
+        except ValueError as e:
+            # Sanity check failures (e.g. BSC AMM overflow) surface as clear user-facing errors
+            return ToolResult(success=False, error=str(e))
         except Exception as e:
             return ToolResult(success=False, error=str(e))
 
@@ -129,7 +132,7 @@ Returns: [{address, symbol, name, decimals}] (max 20 results)"""
         if not chain:
             return ToolResult(success=False, error="'chain' is required")
         try:
-            data = _get_client(chain).get_tokens()
+            data = await _get_client(chain).get_tokens()
             token_map = data.get("tokens", data) if isinstance(data, dict) else data
             tokens = list(token_map.values()) if isinstance(token_map, dict) else token_map
             if search:
@@ -178,7 +181,7 @@ Returns: allowance amount, needs_approval (bool)"""
             return ToolResult(success=True, output={"allowance": "unlimited", "needs_approval": False, "note": "Native ETH does not need approval"})
         try:
             address = _get_address()
-            data = _get_client(chain).get_allowance(token_address, address)
+            data = await _get_client(chain).get_allowance(token_address, address)
             allowance = data.get("allowance", "0")
             return ToolResult(success=True, output={"allowance": allowance, "needs_approval": allowance == "0", "token": token_address, "wallet": address})
         except Exception as e:
@@ -228,7 +231,7 @@ Returns: transaction hash"""
             from tools.wallet import wallet_transfer_sync
 
             client = _get_client(chain)
-            tx_data = client.get_approve_transaction(token_address, amount=amount if amount else None)
+            tx_data = await client.get_approve_transaction(token_address, amount=amount if amount else None)
 
             # Broadcast via Starchild wallet_transfer (no Fly Machine required)
             result = wallet_transfer_sync(
@@ -293,7 +296,7 @@ Returns: transaction hash, estimated output amount"""
             client = _get_client(chain)
             address = _get_address()
 
-            swap_data = client.get_swap(src, dst, amount, address, slippage)
+            swap_data = await client.get_swap(src, dst, amount, address, slippage)
             tx = swap_data.get("tx", {})
             if not tx:
                 return ToolResult(success=False, error="1inch API returned no transaction data")
