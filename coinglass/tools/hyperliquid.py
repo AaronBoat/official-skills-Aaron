@@ -9,7 +9,7 @@ positions by coin, user positions, and position distribution.
 import sys
 import json
 import argparse
-from typing import Dict, Any, Optional
+from typing import Dict, Any, List, Optional
 
 from ._api import cg_request
 

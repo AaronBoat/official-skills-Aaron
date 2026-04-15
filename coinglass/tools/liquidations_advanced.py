@@ -9,7 +9,7 @@ coin list aggregation, liquidation orders, and heatmap data.
 import sys
 import json
 import argparse
-from typing import Dict, Any, Optional
+from typing import Dict, Any, List, Optional
 
 from ._api import cg_request
 
