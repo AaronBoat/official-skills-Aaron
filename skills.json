@@ -44,6 +44,12 @@
       "description": "Preview panel knowledge — the iframe-based Preview tab in the right panel. Use when the user mentions browser, preview, tab disappeared, page broken, blank screen, white screen, 白屏, 页面挂了, tab 不见了, preview not loading, or asks about running services."
     },
     {
+      "name": "chart",
+      "path": "chart/SKILL.md",
+      "version": "3.0.0",
+      "description": "Interactive web-based charts for data analysis and business intelligence. Project-based output in output/chart-html/<project>/ with HTML + script + data + screenshot."
+    },
+    {
       "name": "charting",
       "path": "charting/SKILL.md",
       "version": "1.0.0",
