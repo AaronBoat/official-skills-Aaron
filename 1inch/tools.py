@@ -8,17 +8,15 @@ All tools use wallet_transfer (Starchild native) for on-chain tx broadcast.
 No Fly Machine dependency. Works in any Starchild container.
 """
 
+import asyncio
 import logging
-import os
+import sys
 from typing import Dict
 
 from core.tool import BaseTool, ToolContext, ToolResult
 from .client import OneInchClient, NATIVE_TOKEN, resolve_chain
 
 logger = logging.getLogger(__name__)
-
-# Agent wallet address — set once at startup
-AGENT_ADDRESS = os.environ.get("AGENT_EVM_ADDRESS", "")
 
 # Cache of clients per chain_id
 _clients: Dict[int, OneInchClient] = {}
@@ -32,14 +30,21 @@ def _get_client(chain: str) -> OneInchClient:
 
 
 def _get_address() -> str:
-    """Get agent EVM address from env."""
-    addr = AGENT_ADDRESS or os.environ.get("AGENT_EVM_ADDRESS", "")
-    if not addr:
-        raise RuntimeError(
-            "AGENT_EVM_ADDRESS not configured. "
-            "Starchild sets this automatically for internal wallets."
-        )
-    return addr
+    """Get agent EVM address from platform wallet API (no env var needed)."""
+    try:
+        sys.path.insert(0, '/app')
+        from tools.wallet import _wallet_request
+        data = asyncio.run(_wallet_request("GET", "/agent/wallet"))
+        wallets = data if isinstance(data, list) else data.get("wallets", [])
+        for w in wallets:
+            if w.get("chain_type") == "ethereum":
+                return w["wallet_address"]
+    except Exception as e:
+        logger.warning(f"_get_address: wallet API failed — {e}")
+    raise RuntimeError(
+        "Unable to retrieve EVM wallet address from platform. "
+        "Ensure the agent has a wallet configured."
+    )
 
 
 # ── Read-Only Tools ──────────────────────────────────────────────────────────
