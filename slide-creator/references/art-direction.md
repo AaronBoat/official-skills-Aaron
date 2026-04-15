@@ -186,9 +186,9 @@ template for the chosen style and customize accent/font to match user's brand.
 
 ### 3 key questions to ask the user
 
-1. **Audience & setting** — "这个 deck 是给谁看的？投资人、团队内部、还是公开演讲？"
-2. **Mood keyword** — "你希望看完之后观众有什么感觉？（专业权威 / 创意活力 / 亲切友好 / 极客酷炫）"
-3. **Brand constraint** — "有没有品牌色、指定字体、或者 logo 需要融入？"
+1. **Audience & setting** — "Who is this deck for: investors, internal team, or a public keynote?"
+2. **Mood keyword** — "How should the audience feel after viewing it? (authoritative / energetic / friendly / geeky-modern)"
+3. **Brand constraint** — "Any brand colors, required fonts, or logo that must be included?"
 
 ### Search strategy
 
@@ -266,7 +266,7 @@ Logo spot:    top-right, 40px height
 
 ---
 
-### 10. Ink & Paper (水墨极简)
+### 10. Ink & Paper (Ink-Wash Minimalism)
 **Mood:** Cultural depth, elegant restraint, East-West hybrid  
 **Industries:** Cultural events, luxury brand, art foundation, Chinese heritage organizations
 
@@ -392,10 +392,10 @@ Layout:       benefit-first, social proof blocks, CTA-heavy closing slide
 | HKEX / HK Finance | HK Financial Blue-Gold | Light Clean Corporate |
 | HK Web3 Conference | Dark Tech Minimal | Glassmorphism |
 | Crypto community / NFT | Crypto Neon Underground | Dark Tech Minimal |
-| CN Cultural / Heritage | Ink & Paper 水墨 | Warm Startup |
+| CN Cultural / Heritage | Ink & Paper (Ink-Wash Minimalism) | Warm Startup |
 | Singapore Government | Singapore Tech Hub | Light Clean Corporate |
 | SEA Startup | Singapore Tech Hub | Bold Gradient |
-| Pan-Asian Luxury | Ink & Paper 水墨 | Glassmorphism |
+| Pan-Asian Luxury | Ink & Paper (Ink-Wash Minimalism) | Glassmorphism |
 | SaaS / Dev tools | Dark Tech Minimal | Monochrome Technical |
 | Finance / Legal | Light Clean Corporate | Newspaper Editorial |
 | Creative agency | Bold Gradient | Glassmorphism |
@@ -473,10 +473,10 @@ NOT:          neon glow, cyber effects, rainbow gradients, rounded cards
 | HKEX / HK Finance | HK Financial Blue-Gold | Light Clean Corporate |
 | HK Web3 Conference | Dark Tech Minimal | Glassmorphism |
 | Crypto community / NFT | Crypto Neon Underground | Dark Tech Minimal |
-| CN Cultural / Heritage | Ink & Paper 水墨 | Warm Startup |
+| CN Cultural / Heritage | Ink & Paper (Ink-Wash Minimalism) | Warm Startup |
 | Singapore Government | Singapore Tech Hub | Light Clean Corporate |
 | SEA Startup | Singapore Tech Hub | Bold Gradient |
-| Pan-Asian Luxury | Ink & Paper 水墨 | Glassmorphism |
+| Pan-Asian Luxury | Ink & Paper (Ink-Wash Minimalism) | Glassmorphism |
 | SaaS / Dev tools | Dark Tech Minimal | Monochrome Technical |
 | Finance / Legal | Light Clean Corporate | Newspaper Editorial |
 | Creative agency | Bold Gradient | Glassmorphism |

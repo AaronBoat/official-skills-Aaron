@@ -1,6 +1,6 @@
 ---
 name: slide-creator
-version: 2.1.1
+version: 2.1.2
 description: "Create presentation slide decks as HTML and auto-export to 16:9 PDF. Use when the user asks to make a PPT, slide deck, presentation, or pitch deck. Final output is a PDF file — not PowerPoint format."
 
 metadata:
@@ -37,10 +37,10 @@ Before any other step, identify the presentation scenario. Read `references/cont
 
 | Scenario keyword | Template to use |
 |-----------------|----------------|
-| pitch / investor / 融资 | `pitch-deck` |
-| conference / keynote / 大会 / 演讲 | `conference-keynote` |
-| product launch / 发布会 | `product-launch` |
-| report / research / 研究 / 报告 | `research-report` |
+| pitch / investor / fundraising | `pitch-deck` |
+| conference / keynote / summit / talk | `conference-keynote` |
+| product launch / launch event | `product-launch` |
+| report / research / analysis | `research-report` |
 | (none of the above) | ask user which scenario fits best |
 
 Each template defines: slide count, page titles, required content per page.
@@ -64,10 +64,10 @@ Define slide count and content per slide based on the scenario template. Each sl
 > CSS token templates, and style-brief output format.
 
 **Step A — Ask 4 questions:**
-1. 受众与场景：给谁看、什么场合（投资人/内部/公开演讲）？
-2. 情绪关键词：希望观众感受到什么（专业权威 / 创意活力 / 亲切友好 / 极客酷炫）？
-3. 品牌约束：有没有指定的品牌色、logo、字体？
-4. 参考素材：有没有想对齐的模板参考（图片、网页链接、现有 deck 截图）？
+1. Audience & setting: who is this for, and in what context (investors / internal team / public keynote)?
+2. Mood keywords: how should the audience feel (authoritative / energetic / friendly / geeky-modern)?
+3. Brand constraints: any required brand colors, logo, or fonts?
+4. Reference material: any template references to align with (images, web links, existing deck screenshots)?
 
 **Step B — Generate a visual style picker page:**
 Do NOT present style options as text descriptions — users can't evaluate styles from words alone.
@@ -92,7 +92,7 @@ Then:
 4. Each card has a label below: style name + one-line description.
 5. Add `onclick` highlight so the user can click to indicate their choice.
 
-User picks by saying "选A" / "我要B" / "融合A+C" etc.
+User picks by saying "Choose A" / "I want B" / "Blend A+C" etc.
 
 **Step C — Generate style-brief.md:**
 Once user selects a style, write a `style-brief.md` (template in art-direction.md) in the project directory.
@@ -100,7 +100,7 @@ All subsequent HTML/CSS work must follow this brief.
 
 **Step D — Ask for brand assets (logo / colors):**
 After user picks a style, ask:
-> "有没有 logo 或品牌色需要加进去？可以上传图片文件，我会把 logo 嵌入每张 slide。"
+> "Do you have a logo or brand color to include? You can upload an image file, and I’ll embed the logo across the slides."
 
 If logo uploaded: embed as base64 in HTML (use `base64.b64encode` in bash), place in top-left or top-right corner at ≤60px height.
 If brand color given: override `--accent` in CSS token block with user's color.
@@ -186,16 +186,16 @@ for p in doc:
 - Each slide should have clear visual hierarchy: tag → title → content
 - Keep text concise — slides are visual, not documents
 - Use `.bg-glow` with theme-colored radial gradients for depth
-- 默认不使用 `web_search` 做风格检索；优先用户提供的参考图/链接 + `art-direction.md` 模板
-- 当用户给了参考链接时，可用 `web_fetch` 读取页面内容提取设计线索（色调/语气/布局），但最终 CSS 仍由本地模板与变量落地
-- When user asks for "美术建议/风格建议", always generate a visual style-picker preview page (3 options) — never use text descriptions alone
+- Do not use `web_search` for style exploration by default; prioritize user-provided reference images/links plus templates in `art-direction.md`.
+- When the user provides reference links, use `web_fetch` to extract design cues (color tone / voice / layout), but implement final CSS using local templates and token variables.
+- When the user asks for "art-direction advice / style advice", always generate a visual style-picker preview page (3 options) — never rely on text-only descriptions.
 - Build HTML strictly against chosen style brief, then export PDF (do not skip brief unless user explicitly opts out)
 - After style is chosen, always ask about logo / brand assets before building
 - For HK/TW/SG/bilingual audiences, default to bilingual layout unless user says English only
 
 ## Style Microtweaks (after style is chosen)
 
-If user says "主色改成红色" / "换个字体" / "圆角再大一点", do NOT restart art direction.
+If user says "change primary color to red" / "switch the font" / "increase corner radius", do NOT restart art direction.
 Instead, directly patch the `--accent` / `--font-head` / `--radius` CSS variable in `styles.css`.
 Only restart art direction if user wants a completely different style.
 

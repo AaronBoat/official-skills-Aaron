@@ -94,7 +94,7 @@ Use when audience is bilingual (HK, Singapore, TW, global Chinese events) or use
 ### Heading structure
 ```html
 <h1 class="slide-title">Main Title in English</h1>
-<p class="slide-subtitle">中文副标题或解释</p>
+<p class="slide-subtitle">Chinese subtitle or explanation</p>
 ```
 
 ### Body bullets
@@ -120,8 +120,8 @@ Use when audience is bilingual (HK, Singapore, TW, global Chinese events) or use
 
 | Signal from user | Layout |
 |-----------------|--------|
-| "中英文" / "bilingual" / "双语" | Full bilingual |
-| Audience is HK / SG / TW / 华人 | Default bilingual unless told otherwise |
-| "English only" / 明确只用英文 | English only |
+| "Chinese + English" / "bilingual" / "dual-language" | Full bilingual |
+| Audience is HK / SG / TW / Chinese-speaking diaspora | Default bilingual unless told otherwise |
+| "English only" / explicitly request English only | English only |
 | Audience is pure Mainland CN | Chinese only |
 | International / Western audience | English only |
