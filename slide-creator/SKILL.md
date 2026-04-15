@@ -1,6 +1,6 @@
 ---
 name: slide-creator
-version: 2.0.0
+version: 2.1.1
 description: "Create presentation slide decks as HTML and auto-export to 16:9 PDF. Use when the user asks to make a PPT, slide deck, presentation, or pitch deck. Final output is a PDF file — not PowerPoint format."
 
 metadata:
@@ -31,9 +31,31 @@ Build slide decks as HTML, export to pixel-perfect 16:9 PDF via headless Chromiu
 
 ## Workflow
 
+### 0. Identify Scenario (new)
+
+Before any other step, identify the presentation scenario. Read `references/content-scaffolding.md` for full templates.
+
+| Scenario keyword | Template to use |
+|-----------------|----------------|
+| pitch / investor / 融资 | `pitch-deck` |
+| conference / keynote / 大会 / 演讲 | `conference-keynote` |
+| product launch / 发布会 | `product-launch` |
+| report / research / 研究 / 报告 | `research-report` |
+| (none of the above) | ask user which scenario fits best |
+
+Each template defines: slide count, page titles, required content per page.
+
+### 0.5 Bilingual Layout (if needed)
+
+If the audience is bilingual (e.g. HK, Singapore, global Chinese conference), or the user mentions Chinese + English:
+- Use the `bilingual` layout mode from `references/content-scaffolding.md`
+- Heading: English (large) + Chinese subtitle (smaller, --text-muted)
+- Body bullets: Chinese first, English parenthetical optional
+- Avoid pure English-only decks for HK/TW/SG audiences
+
 ### 1. Plan the Deck
 
-Define slide count and content per slide. Each slide = one `<section class="slide">`.
+Define slide count and content per slide based on the scenario template. Each slide = one `<section class="slide">`.
 
 ### 1.5 Art Direction (run this before building)
 
@@ -41,22 +63,47 @@ Define slide count and content per slide. Each slide = one `<section class="slid
 > Read `skills/slide-creator/references/art-direction.md` for the full style taxonomy,
 > CSS token templates, and style-brief output format.
 
-**Step A — Ask 3 questions:**
+**Step A — Ask 4 questions:**
 1. 受众与场景：给谁看、什么场合（投资人/内部/公开演讲）？
 2. 情绪关键词：希望观众感受到什么（专业权威 / 创意活力 / 亲切友好 / 极客酷炫）？
 3. 品牌约束：有没有指定的品牌色、logo、字体？
+4. 参考素材：有没有想对齐的模板参考（图片、网页链接、现有 deck 截图）？
 
-**Step B — Search for references:**
-Use `web_search` with patterns from art-direction.md to find 2–3 real examples.
-Search target: Dribbble, Behance, or design blogs with relevant style + industry keywords.
+**Step B — Generate a visual style picker page:**
+Do NOT present style options as text descriptions — users can't evaluate styles from words alone.
 
-**Step C — Present 3 style options:**
-Each option includes: style name, mood description, color swatches (bg/surface/accent), font pair, and why it fits their content.
-Show the search results as supporting references.
+Reference handling rules:
+- If user provides **image files/screenshots**: sample palette (primary/surface/accent), inspect layout density, corner radius, typography tone from the visual.
+- If user provides **web URLs**: use `web_fetch` to extract design cues. **Critical — follow this extraction protocol to avoid misreading the style:**
+  1. **Ignore the brand name / domain name** — never infer visual style from the product's industry or name (e.g. "Neo" does NOT mean neon, "Opera" does NOT mean European luxury).
+  2. **Read copy tone & vocabulary** — the words used on the page reveal mood (e.g. "surgical precision", "quiet confidence" → restrained; "unleash", "radically" → bold/aggressive).
+  3. **Extract explicit color vocabulary** — look for CSS keywords in the fetched text, or color names mentioned in body text / alt tags. Warm vs cool, light vs dark, muted vs saturated.
+  4. **Infer layout density** — count words per section; sparse = editorial/luxury, dense = technical/functional.
+  5. **Identify decorative motifs** — mentioned or implied (e.g. geometry, gradients, photography, illustration, line art, brutalism).
+  6. **Cross-check against art-direction.md** — find the closest matching template, then describe the delta (e.g. "Style G but warmer, replace blue with burnt orange, add subtle grid lines").
+  7. **When uncertain**: be conservative — under-promise the style match and present 3 options where Option A is your best interpretation, B is safer/cleaner, C is more experimental. **Never confidently assert a style that contradicts the actual visual evidence.**
+- If user provides both: prioritize image cues first, URL cues second.
+- If no references are provided: use built-in style taxonomy defaults.
 
-**Step D — Generate style-brief.md:**
+Then:
+1. Create `output/style-picker/index.html` — a single page with 3 side-by-side mini slide previews (16:9 aspect ratio), each fully rendered with real CSS (colors, fonts, layout, decorative elements). Each preview must look like an actual slide, not a color chip.
+2. Build these 3 options as: **(A) Reference-faithful**, **(B) Safer corporate variant**, **(C) Bolder creative variant**.
+3. `preview_serve` the directory and show the preview URL.
+4. Each card has a label below: style name + one-line description.
+5. Add `onclick` highlight so the user can click to indicate their choice.
+
+User picks by saying "选A" / "我要B" / "融合A+C" etc.
+
+**Step C — Generate style-brief.md:**
 Once user selects a style, write a `style-brief.md` (template in art-direction.md) in the project directory.
 All subsequent HTML/CSS work must follow this brief.
+
+**Step D — Ask for brand assets (logo / colors):**
+After user picks a style, ask:
+> "有没有 logo 或品牌色需要加进去？可以上传图片文件，我会把 logo 嵌入每张 slide。"
+
+If logo uploaded: embed as base64 in HTML (use `base64.b64encode` in bash), place in top-left or top-right corner at ≤60px height.
+If brand color given: override `--accent` in CSS token block with user's color.
 
 ### 2. Choose a Theme
 
@@ -139,8 +186,18 @@ for p in doc:
 - Each slide should have clear visual hierarchy: tag → title → content
 - Keep text concise — slides are visual, not documents
 - Use `.bg-glow` with theme-colored radial gradients for depth
-- When user asks for "美术建议/风格建议", always provide at least 3 concrete style routes with examples before coding
+- 默认不使用 `web_search` 做风格检索；优先用户提供的参考图/链接 + `art-direction.md` 模板
+- 当用户给了参考链接时，可用 `web_fetch` 读取页面内容提取设计线索（色调/语气/布局），但最终 CSS 仍由本地模板与变量落地
+- When user asks for "美术建议/风格建议", always generate a visual style-picker preview page (3 options) — never use text descriptions alone
 - Build HTML strictly against chosen style brief, then export PDF (do not skip brief unless user explicitly opts out)
+- After style is chosen, always ask about logo / brand assets before building
+- For HK/TW/SG/bilingual audiences, default to bilingual layout unless user says English only
+
+## Style Microtweaks (after style is chosen)
+
+If user says "主色改成红色" / "换个字体" / "圆角再大一点", do NOT restart art direction.
+Instead, directly patch the `--accent` / `--font-head` / `--radius` CSS variable in `styles.css`.
+Only restart art direction if user wants a completely different style.
 
 ## Gotchas
 
