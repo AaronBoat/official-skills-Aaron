@@ -236,3 +236,258 @@ Present exactly **3 style options**, each with:
 - [URL or description 1]
 - [URL or description 2]
 ```
+
+---
+
+## Extended Styles (Asian / Regional Aesthetics)
+
+> Notes on references
+> - If user provides reference images/screenshots, extract palette + spacing + shape language from images first.
+> - If user provides web links, use `web_fetch` to read page content and infer tone/structure, then map into nearest style token template.
+> - Avoid depending on remote CSS/source-code scraping; keep implementation template-driven.
+
+---
+
+### 9. HK Financial Blue-Gold
+**Mood:** Authoritative, institutional, premium  
+**Industries:** HKEX-listed companies, HK financial institutions, cross-border finance, Web3 in HK  
+**Inspired by:** HKEX annual reports, DBS/Hang Seng brand decks
+
+```
+Background:   #0a1628 / #0d1f3c (deep navy)
+Surface:      rgba(212,175,55,0.08) border rgba(212,175,55,0.25) (gold tint)
+Accent:       #d4af37 (HKEX gold) / #c8a951 (warm gold)
+Text:         #f5f0e8 (warm white) / #a89a7a (muted gold)
+Font:         EB Garamond (headings, serif authority) + Inter (body)
+Radius:       0–4px (sharp, institutional)
+Effect:       thin gold horizontal rule as section divider, subtle grid texture
+Logo spot:    top-right, 40px height
+```
+
+---
+
+### 10. Ink & Paper (水墨极简)
+**Mood:** Cultural depth, elegant restraint, East-West hybrid  
+**Industries:** Cultural events, luxury brand, art foundation, Chinese heritage organizations
+
+```
+Background:   #faf8f5 (warm paper) / #1a1a18 (ink black)
+Surface:      #f0ede8 border #d4cfc8
+Accent:       #c0392b (vermilion red) / #2c5f2e (pine green)
+Text:         #1a1a18 / #5a5650
+Font:         Noto Serif SC (Chinese headings) + Cormorant Garamond (English) + Noto Sans SC (body)
+Radius:       0px
+Effect:       thin brush-stroke SVG rule, asymmetric layout, generous white space
+Layout:       right-aligned text blocks, large negative space
+```
+
+---
+
+### 11. Singapore Tech Hub
+**Mood:** Modern, multicultural, optimistic, government-confident  
+**Industries:** GovTech, smart city, regional HQ, SEA startup
+
+```
+Background:   #fff / #f0f4f8
+Surface:      #e8f0fe border #c5d5f5
+Accent:       #e63946 (SG red) / #1d3557 (trusted blue)
+Text:         #1d3557 / #457b9d
+Font:         IBM Plex Sans (bilingual-safe, supports Chinese) + IBM Plex Mono (data)
+Radius:       6–10px
+Effect:       subtle diagonal stripe texture, clean card shadows
+Note:         IBM Plex Sans covers Latin + Chinese glyphs natively
+```
+
+---
+
+### 12. Crypto Neon Underground
+**Mood:** Hype, community, degen, memetic energy  
+**Industries:** NFT project, DeFi protocol, meme coin, crypto-native community
+
+```
+Background:   #000 / #050510
+Surface:      #0d0d20 border rgba(0,255,200,0.2)
+Accent:       #00ffcc (neon green) / #ff2d78 (hot pink) — use both freely
+Text:         #fff / #b0fce9
+Font:         Rajdhani / Exo 2 (headings) + Space Mono (data/addresses)
+Radius:       4px
+Effect:       animated scanline CSS, glitch text effect (CSS only), neon box-shadow
+Layout:       asymmetric, rule-breaking, oversized numbers
+```
+
+---
+
+### 13. Silicon Valley Product Minimal
+**Mood:** Product-led, clean, confident, conversion-focused  
+**Industries:** US B2B SaaS, developer tools, product launches, PLG companies
+
+```
+Background:   #f8fafc / #ffffff
+Surface:      #ffffff border #e5e7eb
+Accent:       #2563eb (product blue) / #14b8a6 (teal alt)
+Text:         #0f172a / #475569
+Font:         Inter (UI-safe) + Geist (headings optional)
+Radius:       10–14px
+Effect:       minimal cards, subtle shadow (0 8px 24px rgba(15,23,42,0.06))
+Layout:       strong whitespace, tight hierarchy, KPI cards
+```
+
+---
+
+### 14. YC / Stripe Investor Clean
+**Mood:** Rational, credible, metrics-first, founder-friendly  
+**Industries:** US/EU startup fundraising, seed-series A pitch decks
+
+```
+Background:   #ffffff / #f9fafb
+Surface:      #f3f4f6 border #d1d5db
+Accent:       #635bff (stripe violet) / #ff5a1f (yc orange, sparing)
+Text:         #111827 / #6b7280
+Font:         Inter + IBM Plex Sans
+Radius:       6–10px
+Effect:       no heavy decoration, straight lines, data tables + tiny charts
+Layout:       investor narrative flow, one chart or one claim per slide
+```
+
+---
+
+### 15. European Editorial Luxury
+**Mood:** Premium, restrained, high-fashion editorial  
+**Industries:** Luxury brands, fashion, design studios, cultural institutions
+
+```
+Background:   #f7f5f2 / #111111
+Surface:      #ece8e1 border #d6d0c7
+Accent:       #b08d57 (champagne gold) / #8c7355
+Text:         #171717 / #5b5b5b
+Font:         Canela/Playfair Display (headings) + Neue Haas/Inter (body fallback)
+Radius:       0–4px
+Effect:       thin rules, oversized serif titles, magazine-like whitespace
+Layout:       asymmetric editorial grid, pull quotes, image-led sections
+```
+
+---
+
+### 16. California Lifestyle Gradient
+**Mood:** Optimistic, social, creator-economy friendly  
+**Industries:** US consumer apps, DTC, creator tools, community products
+
+```
+Background:   linear-gradient(135deg, #fff7ed 0%, #ffe4e6 45%, #e0f2fe 100%)
+Surface:      rgba(255,255,255,0.75) border rgba(255,255,255,0.9)
+Accent:       #ff6b6b / #6366f1 / #06b6d4
+Text:         #1f2937 / #6b7280
+Font:         Sora (head) + Inter (body)
+Radius:       14–24px
+Effect:       soft blob gradients, friendly icons, rounded chips
+Layout:       benefit-first, social proof blocks, CTA-heavy closing slide
+```
+
+---
+
+## Updated Industry → Style Map
+
+| Industry / Audience | Primary | Alternative |
+|--------------------|---------|-------------|
+| HKEX / HK Finance | HK Financial Blue-Gold | Light Clean Corporate |
+| HK Web3 Conference | Dark Tech Minimal | Glassmorphism |
+| Crypto community / NFT | Crypto Neon Underground | Dark Tech Minimal |
+| CN Cultural / Heritage | Ink & Paper 水墨 | Warm Startup |
+| Singapore Government | Singapore Tech Hub | Light Clean Corporate |
+| SEA Startup | Singapore Tech Hub | Bold Gradient |
+| Pan-Asian Luxury | Ink & Paper 水墨 | Glassmorphism |
+| SaaS / Dev tools | Dark Tech Minimal | Monochrome Technical |
+| Finance / Legal | Light Clean Corporate | Newspaper Editorial |
+| Creative agency | Bold Gradient | Glassmorphism |
+| Education / EdTech | Playful Illustration | Warm Startup |
+| AI / Research | Monochrome Technical | Dark Tech Minimal |
+| Consumer brand | Warm Startup | Playful Illustration |
+| Healthcare | Light Clean Corporate | — |
+| Government / Policy | Newspaper Editorial | Singapore Tech Hub |
+| US Big Tech / B2B SaaS | Silicon Valley Product Minimal | Dark Tech Minimal |
+| US/EU VC Fundraising | YC / Stripe Investor Clean | Light Clean Corporate |
+| European Luxury / Fashion | European Editorial Luxury | Glassmorphism |
+| US Consumer Growth / DTC | California Lifestyle Gradient | Warm Startup |
+
+---
+
+## Reference Extraction Protocol (from real-world testing)
+
+> When a user provides a web URL as a style reference, follow these 7 rules to avoid misreading the style.
+> These were discovered through trial-and-error (e.g. operaneon.com was misread as "neon" when it was actually warm brutalist).
+
+### 7 Rules for URL Reference Extraction
+
+1. **Ignore the brand name / domain name** — Never infer visual style from the product's industry or name. Example: "Neo" does NOT mean neon, "Opera" does NOT mean European luxury. The URL text is a red herring.
+
+2. **Read copy tone & vocabulary** — The words used on the page reveal mood:
+   - "surgical precision", "quiet confidence" → restrained, controlled
+   - "unleash", "radically", "disrupt" → bold, aggressive
+   - "crafted", "heritage", "timeless" → editorial, luxury
+   - "fast", "simple", "built for" → product-led, SaaS
+
+3. **Extract explicit color vocabulary** — Look for CSS keywords in the fetched text, or color names mentioned in body text / alt tags. Warm vs cool, light vs dark, muted vs saturated. The actual words on the page are more reliable than guessing.
+
+4. **Infer layout density** — Count words per section:
+   - Sparse (few words, large gaps) → editorial, luxury, confident
+   - Dense (lots of info, tight spacing) → technical, functional, data-heavy
+
+5. **Identify decorative motifs** — What visual elements are mentioned or implied:
+   - Geometric shapes / grid lines → structural, brutalist
+   - Soft gradients / blobs → lifestyle, friendly
+   - Photography → editorial, human
+   - Line art / icons → technical, clean
+   - Typography-only → editorial, Swiss
+
+6. **Find closest template + describe delta** — Don't generate from scratch. Match to the nearest template in art-direction.md, then describe what to change (e.g. "Style G but warmer, replace blue with burnt orange, add subtle grid lines").
+
+7. **When uncertain, be conservative** — Under-promise the style match. Present 3 options:
+   - Option A = your best interpretation of the reference
+   - Option B = safer, cleaner variant
+   - Option C = more experimental variant
+
+---
+
+## Style 17. Opera Warm Brutalist (extracted from operaneon.com)
+
+**Mood:** Controlled tension, architectural precision, warm undertones  \n**Industries:** Architecture studios, design agencies, creative tech, European creative brands  \n**Extraction notes:** Dark background is warm deep gray/brown (NOT black), accent is burnt orange/amber (NOT neon), typography is large light-weight tight-tracking, decorative elements are thin lines + crosshairs (NOT glow effects).
+
+```
+Background:   #1a1814 / #252220 / #1c1a17 (warm dark gray-brown, NOT pure black)
+Surface:      rgba(255,255,255,0.03) border rgba(255,255,255,0.06) — thin, minimal
+Accent:       #e07a3a (burnt orange) / #c4622d (deep amber) — warm, NOT neon
+Text:         #e8e4df (warm white) / #9a9490 (muted warm gray)
+Font:         Space Grotesk / Helvetica Neue (headings) + Inter (body) — light weight, tight tracking
+Radius:       0–2px (almost sharp, architectural)
+Decorative:   thin grid lines, crosshair marks (+), oversized numbers, generous negative space
+Layout:       editorial grid, asymmetric, content sparse but type-heavy
+NOT:          neon glow, cyber effects, rainbow gradients, rounded cards
+```
+
+---
+
+## Updated Industry → Style Map (with Style 17)
+
+| Industry / Audience | Primary | Alternative |
+|--------------------|---------|-------------|
+| HKEX / HK Finance | HK Financial Blue-Gold | Light Clean Corporate |
+| HK Web3 Conference | Dark Tech Minimal | Glassmorphism |
+| Crypto community / NFT | Crypto Neon Underground | Dark Tech Minimal |
+| CN Cultural / Heritage | Ink & Paper 水墨 | Warm Startup |
+| Singapore Government | Singapore Tech Hub | Light Clean Corporate |
+| SEA Startup | Singapore Tech Hub | Bold Gradient |
+| Pan-Asian Luxury | Ink & Paper 水墨 | Glassmorphism |
+| SaaS / Dev tools | Dark Tech Minimal | Monochrome Technical |
+| Finance / Legal | Light Clean Corporate | Newspaper Editorial |
+| Creative agency | Bold Gradient | Glassmorphism |
+| Education / EdTech | Playful Illustration | Warm Startup |
+| AI / Research | Monochrome Technical | Dark Tech Minimal |
+| Consumer brand | Warm Startup | Playful Illustration |
+| Healthcare | Light Clean Corporate | — |
+| Government / Policy | Newspaper Editorial | Singapore Tech Hub |
+| US Big Tech / B2B SaaS | Silicon Valley Product Minimal | Dark Tech Minimal |
+| US/EU VC Fundraising | YC / Stripe Investor Clean | Light Clean Corporate |
+| European Luxury / Fashion | European Editorial Luxury | Glassmorphism |
+| US Consumer Growth / DTC | California Lifestyle Gradient | Warm Startup |
+| Architecture / Design Studio | Opera Warm Brutalist | European Editorial Luxury |
+| Creative Tech | Opera Warm Brutalist | Dark Tech Minimal |
