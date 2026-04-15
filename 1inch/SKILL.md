@@ -1,9 +1,26 @@
 ---
 name: 1inch
-version: 4.2.0
+version: 4.2.1
 description: 1inch DEX aggregator — EVM same-chain swap, SOL↔EVM cross-chain Fusion+, limit orders. Native tools, no Fly dependency, no aiohttp.
 author: starchild
 tags: [1inch, dex, swap, evm, solana, limit-order, cross-chain]
+tools:
+  - oneinch_quote
+  - oneinch_tokens
+  - oneinch_check_allowance
+  - oneinch_approve
+  - oneinch_swap
+  - oneinch_cross_chain_quote
+  - oneinch_cross_chain_status
+  - oneinch_cross_chain_swap
+  - oneinch_sol_cross_chain_quote
+  - oneinch_sol_to_evm_swap
+  - oneinch_fusion_quote
+  - oneinch_fusion_swap
+  - oneinch_get_orders
+  - oneinch_get_order
+  - oneinch_create_limit_order
+  - oneinch_cancel_limit_order
 metadata:
   starchild:
     emoji: "🦄"
@@ -12,7 +29,7 @@ user-invocable: true
 disable-model-invocation: false
 ---
 
-# 🦄 1inch Skill v4.2.0
+# 🦄 1inch Skill v4.2.1
 
 Same-chain swap · Fusion Mode (gasless, no native gas) · Cross-chain Fusion+ (EVM↔EVM + SOL↔EVM) · Limit Orders
 

@@ -76,13 +76,14 @@ def _normalize_v(signature: str) -> str:
     return signature
 
 
-def _get_wallet_address() -> str:
+async def _get_wallet_address() -> str:
     try:
-        from tools.wallet import wallet_info
-        info = wallet_info()
-        for w in (info if isinstance(info, list) else info.get("wallets", [])):
+        from tools.wallet import _wallet_request
+        data = await _wallet_request("GET", "/agent/wallet")
+        wallets = data if isinstance(data, list) else data.get("wallets", [])
+        for w in wallets:
             if w.get("chain_type") == "ethereum":
-                return w["wallet_address"]
+                return w.get("wallet_address", "")
     except Exception:
         pass
     return ""
@@ -154,7 +155,7 @@ Returns: estimated output amount, presets (slow/medium/fast), fees"""
                 error=f"Source and destination chains are the same ({src_chain}). Use oneinch_quote for same-chain swaps.",
             )
 
-        wallet = _get_wallet_address() or "0x0000000000000000000000000000000000000000"
+        wallet = await _get_wallet_address() or "0x0000000000000000000000000000000000000000"
         try:
             data = _fusion_get("/quoter/v1.1/quote/receive", {
                 "srcChain": str(src_chain_id),
@@ -284,7 +285,7 @@ Returns: order hash, final status, amounts"""
         if preset not in ("fast", "medium", "slow"):
             return ToolResult(success=False, error=f"Invalid preset '{preset}'. Use: fast, medium, slow")
 
-        wallet_address = _get_wallet_address()
+        wallet_address = await _get_wallet_address()
         if not wallet_address:
             return ToolResult(success=False, error="No ethereum wallet configured")
 
@@ -331,26 +332,26 @@ Returns: order hash, final status, amounts"""
             # 4. Sign
             if build_tx:
                 # Native ETH: execute deposit tx, use pre-computed signature
-                from tools.wallet import wallet_sign_transaction
-                wallet_sign_transaction({
+                from tools.wallet import _wallet_request
+                asyncio.run(_wallet_request("POST", "/agent/send-transaction", {
                     "to": build_tx.get("to", ""),
                     "value": str(build_tx.get("value", "0")),
                     "chain_id": src_chain_id,
                     "data": build_tx.get("data", ""),
-                })
+                }))
                 if not build_signature:
                     return ToolResult(success=False, error="Build API returned transaction but no pre-computed signature")
                 signature = build_signature
             else:
-                # ERC-20: sign EIP-712 typed data
-                from tools.wallet import wallet_sign_typed_data
-                sig_result = wallet_sign_typed_data(
-                    domain=typed_data.get("domain", {}),
-                    types=typed_data.get("types", {}),
-                    primary_type=typed_data.get("primaryType", ""),
-                    message=typed_data.get("message", {}),
-                )
-                signature = sig_result.get("signature", "")
+                # ERC-20: sign EIP-712 typed data via _wallet_request
+                from tools.wallet import _wallet_request
+                sig_result = await _wallet_request("POST", "/agent/sign-typed-data", {
+                    "domain": typed_data.get("domain", {}),
+                    "types": typed_data.get("types", {}),
+                    "primaryType": typed_data.get("primaryType", ""),
+                    "message": typed_data.get("message", {}),
+                })
+                signature = sig_result.get("signature", "") if isinstance(sig_result, dict) else ""
                 if not signature:
                     return ToolResult(success=False, error=f"Wallet returned no signature: {sig_result}")
 
@@ -461,8 +462,8 @@ SOL_NATIVE_TOKEN = "SoNative11111111111111111111111111111111111"
 def _get_sol_wallet_address() -> str:
     """Get agent Solana wallet address."""
     try:
-        from tools.wallet import wallet_info
-        info = wallet_info()
+        from tools.wallet import _wallet_request
+        info = asyncio.run(_wallet_request("GET", "/agent/wallet"))
         for w in (info if isinstance(info, list) else info.get("wallets", [])):
             if w.get("chain_type") == "solana":
                 return w["wallet_address"]
@@ -613,7 +614,7 @@ Parameters:
         if not sol_wallet:
             return ToolResult(success=False, error="No Solana wallet configured")
 
-        evm_wallet = _get_wallet_address()
+        evm_wallet = await _get_wallet_address()
         if not evm_wallet:
             return ToolResult(success=False, error="No EVM wallet configured (needed as receiver)")
 
@@ -655,9 +656,11 @@ Parameters:
                                   output={"build_keys": list(build_result.keys())})
 
             # 4. Sign Solana transaction
-            from tools.wallet import wallet_sol_sign_transaction
-            sign_result = wallet_sol_sign_transaction(solana_tx)
-            signed_tx = sign_result.get("signedTransaction", sign_result.get("transaction", ""))
+            from tools.wallet import _wallet_request
+            sign_result = asyncio.run(_wallet_request("POST", "/agent/sol/sign-transaction", {
+                "transaction": solana_tx,
+            }))
+            signed_tx = sign_result.get("signedTransaction", sign_result.get("transaction", "")) if isinstance(sign_result, dict) else ""
             if not signed_tx:
                 return ToolResult(success=False, error=f"SOL wallet sign failed: {sign_result}")
 

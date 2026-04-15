@@ -4,9 +4,10 @@
 Supports EVM: Ethereum, Arbitrum, Base, Optimism, Polygon, BSC, Avalanche, Gnosis.
 Cross-chain also supports Solana (chain ID 501) as src or dst.
 
-Provides 14 tools:
-- 5 same-chain:      quote, tokens, check_allowance, approve, swap
-- 5 cross-chain:     cross_chain_quote, cross_chain_swap, cross_chain_status
+Provides 16 tools:
+- 7 same-chain:      quote, tokens, check_allowance, approve, swap,
+                     fusion_quote, fusion_swap
+- 5 cross-chain:     cross_chain_quote, cross_chain_swap, cross_chain_status,
                      sol_cross_chain_quote, sol_to_evm_swap
 - 4 limit orders:    get_orders, get_order, create_limit_order, cancel_limit_order
 
@@ -87,6 +88,8 @@ def register(api) -> List[str]:
             "oneinch_check_allowance",
             "oneinch_approve",
             "oneinch_swap",
+            "oneinch_fusion_quote",
+            "oneinch_fusion_swap",
             # Cross-chain EVM↔EVM / EVM→SOL
             "oneinch_cross_chain_quote",
             "oneinch_cross_chain_swap",
@@ -119,6 +122,8 @@ EXTENSION_INFO = {
         "oneinch_check_allowance",
         "oneinch_approve",
         "oneinch_swap",
+        "oneinch_fusion_quote",
+        "oneinch_fusion_swap",
         "oneinch_cross_chain_quote",
         "oneinch_cross_chain_swap",
         "oneinch_cross_chain_status",

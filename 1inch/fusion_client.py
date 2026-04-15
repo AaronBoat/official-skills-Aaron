@@ -119,10 +119,7 @@ class FusionPlusClient:
         if self._cached_address:
             return self._cached_address
 
-        from tools.wallet import _wallet_request, _is_fly_machine
-
-        if not _is_fly_machine():
-            raise RuntimeError("Not running on Fly — wallet unavailable")
+        from tools.wallet import _wallet_request
 
         data = await _wallet_request("GET", "/agent/wallet")
         wallets = data if isinstance(data, list) else data.get("wallets", [])

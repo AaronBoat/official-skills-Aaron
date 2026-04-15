@@ -2,11 +2,12 @@
 1inch DEX Aggregator — Native tool exports for agent routing.
 
 Tools registered:
-  READ  (8): oneinch_quote, oneinch_tokens, oneinch_check_allowance
+  READ  (9): oneinch_quote, oneinch_tokens, oneinch_check_allowance
+             oneinch_fusion_quote
              oneinch_cross_chain_quote, oneinch_cross_chain_status
              oneinch_get_orders, oneinch_get_order
              oneinch_sol_cross_chain_quote
-  WRITE (6): oneinch_approve, oneinch_swap
+  WRITE (7): oneinch_approve, oneinch_swap, oneinch_fusion_swap
              oneinch_cross_chain_swap
              oneinch_sol_to_evm_swap
              oneinch_create_limit_order, oneinch_cancel_limit_order
@@ -1468,3 +1469,24 @@ def oneinch_fusion_swap(
         if "policy" in err.lower():
             return {"error": f"Policy violation: {err}. Use wallet_propose_policy to allow this operation."}
         return {"error": err}
+
+
+# Explicit module exports (used by some loaders/introspection paths)
+__all__ = [
+    "oneinch_quote",
+    "oneinch_tokens",
+    "oneinch_check_allowance",
+    "oneinch_approve",
+    "oneinch_swap",
+    "oneinch_fusion_quote",
+    "oneinch_fusion_swap",
+    "oneinch_cross_chain_quote",
+    "oneinch_cross_chain_status",
+    "oneinch_cross_chain_swap",
+    "oneinch_sol_cross_chain_quote",
+    "oneinch_sol_to_evm_swap",
+    "oneinch_get_orders",
+    "oneinch_get_order",
+    "oneinch_create_limit_order",
+    "oneinch_cancel_limit_order",
+]

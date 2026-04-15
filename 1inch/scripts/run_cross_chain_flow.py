@@ -279,9 +279,14 @@ def run(
             if order_status in ("executed", "expired", "refunded", "cancelled"):
                 print(f"\n{'='*60}")
                 if order_status == "executed":
-                    dst_received = status.get("dstAmount", status.get("takingAmount", "?"))
+                    dst_received = status.get("dstAmount", status.get("takingAmount", ""))
                     print(f"✅ 跨链 Swap 成功!")
-                    print(f"   dst 收到: {int(dst_received)/1e6:.4f} USDC ({dst_chain})")
+                    try:
+                        dst_received_fmt = f"{int(str(dst_received))/1e6:.4f}"
+                        print(f"   dst 收到: {dst_received_fmt} USDC ({dst_chain})")
+                    except Exception:
+                        # 某些返回格式不是纯整数字符串，避免打印异常导致继续轮询
+                        print(f"   dst 收到: {dst_received} (raw, {dst_chain})")
                 else:
                     print(f"❌ 订单状态: {order_status} (已自动退款)")
                 print(f"   order_hash: {order_hash}")

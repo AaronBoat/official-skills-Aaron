@@ -211,8 +211,8 @@ Returns: list of open orders with hash, status, maker/taker assets, amounts, exp
         try:
             chain_id = resolve_chain(chain)
             if not wallet_address:
-                from tools.wallet import wallet_info
-                info = wallet_info()
+                from tools.wallet import _wallet_request
+                info = asyncio.run(_wallet_request("GET", "/agent/wallet"))
                 for w in (info if isinstance(info, list) else info.get("wallets", [])):
                     if w.get("chain_type") == "ethereum":
                         wallet_address = w["wallet_address"]
@@ -332,7 +332,7 @@ Returns: order_hash, order details"""
             return ToolResult(success=False, error="maker_asset, taker_asset, making_amount, taking_amount all required")
 
         try:
-            from tools.wallet import wallet_info, wallet_sign_typed_data
+            from tools.wallet import _wallet_request
             chain_id = resolve_chain(chain)
             contract = LOP_CONTRACTS.get(chain_id)
             if not contract:
@@ -340,7 +340,7 @@ Returns: order_hash, order details"""
 
             # Get wallet address
             wallet_address = ""
-            info = wallet_info()
+            info = asyncio.run(_wallet_request("GET", "/agent/wallet"))
             for w in (info if isinstance(info, list) else info.get("wallets", [])):
                 if w.get("chain_type") == "ethereum":
                     wallet_address = w["wallet_address"]
@@ -439,16 +439,16 @@ Returns: order_hash, order details"""
             }
 
             # ── Step 5: EIP-712 sign ─────────────────────────────────────────
-            sig_result = wallet_sign_typed_data(
-                domain={
+            sig_result = asyncio.run(_wallet_request("POST", "/agent/sign-typed-data", {
+                "domain": {
                     "name": "1inch Aggregation Router",
                     "version": "6",
                     "chainId": chain_id,
                     "verifyingContract": contract,
                 },
-                types=ORDER_TYPES,
-                primary_type="Order",
-                message={
+                "types": ORDER_TYPES,
+                "primaryType": "Order",
+                "message": {
                     "salt": salt,
                     "maker": wallet_address,
                     "receiver": receiver,
@@ -458,8 +458,8 @@ Returns: order_hash, order details"""
                     "takingAmount": int(taking_amount),
                     "makerTraits": maker_traits_int,
                 },
-            )
-            signature = sig_result.get("signature", "")
+            }))
+            signature = sig_result.get("signature", "") if isinstance(sig_result, dict) else ""
             if not signature:
                 return ToolResult(success=False, error=f"Wallet sign failed: {sig_result}")
 
@@ -536,7 +536,7 @@ Returns: transaction hash"""
             return ToolResult(success=False, error="'order_hash' is required")
 
         try:
-            from tools.wallet import wallet_sign_transaction
+            from tools.wallet import _wallet_request
             chain_id = resolve_chain(chain)
             contract = LOP_CONTRACTS.get(chain_id)
             if not contract:
@@ -571,12 +571,12 @@ Returns: transaction hash"""
                 + order_hash_bytes
             )
 
-            result = wallet_sign_transaction({
+            result = asyncio.run(_wallet_request("POST", "/agent/send-transaction", {
                 "to": contract,
                 "data": "0x" + calldata.hex(),
                 "value": "0",
                 "chain_id": chain_id,
-            })
+            }))
             return ToolResult(
                 success=True,
                 output={"status": "cancel_sent", "order_hash": order_hash, "tx": result},

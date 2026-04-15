@@ -9,16 +9,12 @@ No Fly Machine dependency. Works in any Starchild container.
 """
 
 import logging
-import os
 from typing import Dict
 
 from core.tool import BaseTool, ToolContext, ToolResult
 from .client import OneInchClient, NATIVE_TOKEN, resolve_chain
 
 logger = logging.getLogger(__name__)
-
-# Agent wallet address — set once at startup
-AGENT_ADDRESS = os.environ.get("AGENT_EVM_ADDRESS", "")
 
 # Cache of clients per chain_id
 _clients: Dict[int, OneInchClient] = {}
@@ -31,15 +27,17 @@ def _get_client(chain: str) -> OneInchClient:
     return _clients[chain_id]
 
 
-def _get_address() -> str:
-    """Get agent EVM address from env."""
-    addr = AGENT_ADDRESS or os.environ.get("AGENT_EVM_ADDRESS", "")
-    if not addr:
-        raise RuntimeError(
-            "AGENT_EVM_ADDRESS not configured. "
-            "Starchild sets this automatically for internal wallets."
-        )
-    return addr
+async def _get_address() -> str:
+    """Get agent EVM address from wallet service."""
+    from tools.wallet import _wallet_request
+
+    data = await _wallet_request("GET", "/agent/wallet")
+    wallets = data if isinstance(data, list) else data.get("wallets", [])
+    for w in wallets:
+        if w.get("chain_type") == "ethereum":
+            return w.get("wallet_address", "")
+
+    raise RuntimeError("No ethereum wallet configured")
 
 
 # ── Read-Only Tools ──────────────────────────────────────────────────────────
@@ -84,7 +82,7 @@ Returns: dstAmount (estimated output in wei), gas estimate, route protocols"""
         if not all([chain, src, dst, amount]):
             return ToolResult(success=False, error="chain, src, dst, amount are all required")
         try:
-            data = _get_client(chain).get_quote(src, dst, amount)
+            data = await _get_client(chain).get_quote(src, dst, amount)
             return ToolResult(success=True, output=data)
         except Exception as e:
             return ToolResult(success=False, error=str(e))
@@ -124,7 +122,7 @@ Returns: [{address, symbol, name, decimals}] (max 20 results)"""
         if not chain:
             return ToolResult(success=False, error="'chain' is required")
         try:
-            data = _get_client(chain).get_tokens()
+            data = await _get_client(chain).get_tokens()
             token_map = data.get("tokens", data) if isinstance(data, dict) else data
             tokens = list(token_map.values()) if isinstance(token_map, dict) else token_map
             if search:
@@ -172,8 +170,8 @@ Returns: allowance amount, needs_approval (bool)"""
         if token_address.lower() == NATIVE_TOKEN.lower():
             return ToolResult(success=True, output={"allowance": "unlimited", "needs_approval": False, "note": "Native ETH does not need approval"})
         try:
-            address = _get_address()
-            data = _get_client(chain).get_allowance(token_address, address)
+            address = await _get_address()
+            data = await _get_client(chain).get_allowance(token_address, address)
             allowance = data.get("allowance", "0")
             return ToolResult(success=True, output={"allowance": allowance, "needs_approval": allowance == "0", "token": token_address, "wallet": address})
         except Exception as e:
@@ -220,18 +218,20 @@ Returns: transaction hash"""
         if not chain or not token_address:
             return ToolResult(success=False, error="chain and token_address are required")
         try:
-            from tools.wallet import wallet_transfer_sync
+            import asyncio
+            from tools.wallet import _wallet_request
 
             client = _get_client(chain)
-            tx_data = client.get_approve_transaction(token_address, amount=amount if amount else None)
+            tx_data = await client.get_approve_transaction(token_address, amount=amount if amount else None)
 
-            # Broadcast via Starchild wallet_transfer (no Fly Machine required)
-            result = wallet_transfer_sync(
-                to=tx_data["to"],
-                amount=tx_data.get("value", "0"),
-                data=tx_data.get("data", ""),
-                chain_id=client.chain_id,
-            )
+            # Broadcast via platform internal API
+            result = await _wallet_request("POST", "/agent/transfer", {
+                "to": tx_data["to"],
+                "data": tx_data.get("data", "0x"),
+                "value": tx_data.get("value", "0"),
+                "amount": "0",
+                "chain_id": client.chain_id,
+            })
             return ToolResult(success=True, output={"status": "approval_sent", "token": token_address, "tx": result})
         except Exception as e:
             err = str(e)
@@ -283,23 +283,25 @@ Returns: transaction hash, estimated output amount"""
         if not all([chain, src, dst, amount]):
             return ToolResult(success=False, error="chain, src, dst, amount are all required")
         try:
-            from tools.wallet import wallet_transfer_sync
+            import asyncio
+            from tools.wallet import _wallet_request
 
             client = _get_client(chain)
-            address = _get_address()
+            address = await client._get_address()
 
-            swap_data = client.get_swap(src, dst, amount, address, slippage)
+            swap_data = await client.get_swap(src, dst, amount, address, slippage)
             tx = swap_data.get("tx", {})
             if not tx:
                 return ToolResult(success=False, error="1inch API returned no transaction data")
 
-            # Broadcast via Starchild wallet_transfer (no Fly Machine required)
-            result = wallet_transfer_sync(
-                to=tx["to"],
-                amount=tx.get("value", "0"),
-                data=tx.get("data", ""),
-                chain_id=client.chain_id,
-            )
+            # Broadcast via platform internal API
+            result = await _wallet_request("POST", "/agent/transfer", {
+                "to": tx["to"],
+                "data": tx.get("data", "0x"),
+                "value": tx.get("value", "0"),
+                "amount": "0",
+                "chain_id": client.chain_id,
+            })
             return ToolResult(success=True, output={
                 "status": "swap_sent",
                 "src": src,
