@@ -8,6 +8,11 @@ Architecture note:
   All HTTP calls use proxied_get/proxied_post (sc-proxy sync path).
   The previous aiohttp async path caused pending+empty tx_hash bugs and has been removed.
   Verified: ETH→ARB 2 USDC swap, ~76s settlement (2025).
+
+safetyDeposit auto-topup (v4.3.0):
+  Fusion+ cross-chain requires a small native token safetyDeposit on the source chain
+  (e.g. ~0.00001 ETH on ARB). If the wallet lacks native token, we auto-topup by swapping
+  a tiny amount of src_token → native via 1inch Fusion (gasless same-chain), then proceed.
 """
 
 import json
@@ -24,9 +29,15 @@ logger = logging.getLogger(__name__)
 
 SC_CALLER_ID = "skill:1inch"
 FUSION_BASE = "https://api.1inch.com/fusion-plus"
+FUSION_SAME_CHAIN_BASE = "https://api.1inch.com/fusion"
 
 MAX_POLL_TIME = 300   # 5 minutes
 POLL_INTERVAL = 15    # seconds
+
+# Topup buffer: buy 2× safetyDeposit to cover price fluctuation
+SAFETY_DEPOSIT_BUFFER = 2.0
+# Native token placeholder
+NATIVE_TOKEN = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
 
 # Reverse lookup: chain_id → chain_name
 CHAIN_ID_TO_NAME = {v: k for k, v in SUPPORTED_CHAINS.items()}
@@ -86,6 +97,123 @@ def _get_wallet_address() -> str:
     except Exception:
         pass
     return ""
+
+
+def _get_native_balance_wei(chain_id: int, wallet: str) -> int:
+    """Query native token balance (wei) via 1inch balance API."""
+    try:
+        resp = proxied_get(
+            f"https://api.1inch.dev/balance/v1.2/{chain_id}/balances/{wallet}",
+            params={},
+            headers={"SC-CALLER-ID": SC_CALLER_ID},
+        )
+        if resp.status_code == 200:
+            balances = resp.json()
+            # Native token is keyed by the NATIVE_TOKEN placeholder
+            native_val = balances.get(NATIVE_TOKEN, balances.get("0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", "0"))
+            return int(native_val)
+    except Exception as e:
+        logger.debug(f"Native balance query failed: {e}")
+    return 0
+
+
+def _ensure_native_for_safety_deposit(
+    chain_id: int,
+    chain_name: str,
+    wallet: str,
+    src_token: str,
+    required_wei: int,
+) -> dict:
+    """Ensure wallet has enough native token for safetyDeposit.
+
+    If insufficient, auto-topup by swapping src_token → native via same-chain Fusion
+    (gasless, no native needed for the topup itself).
+
+    Returns:
+        {"ok": True}  — native is sufficient (or topup succeeded)
+        {"ok": False, "error": str}  — topup failed
+        {"ok": True, "topup": True, "topup_amount_wei": int}  — topup done
+    """
+    current_wei = _get_native_balance_wei(chain_id, wallet)
+    if current_wei >= required_wei:
+        logger.info(f"Native balance {current_wei} wei >= required {required_wei} wei. No topup needed.")
+        return {"ok": True}
+
+    topup_wei = int(required_wei * SAFETY_DEPOSIT_BUFFER)
+    logger.info(f"Native balance {current_wei} wei < {required_wei} wei. Auto-topup {topup_wei} wei via Fusion.")
+
+    # Get quote: src_token → native, estimate USDC cost for topup_wei
+    try:
+        quote_resp = proxied_get(
+            f"{FUSION_SAME_CHAIN_BASE}/quoter/v2.0/{chain_id}/quote/receive",
+            params={
+                "fromTokenAddress": src_token,
+                "toTokenAddress": NATIVE_TOKEN,
+                "amount": str(topup_wei),
+                "walletAddress": wallet,
+                "enableEstimate": "true",
+            },
+            headers={"SC-CALLER-ID": SC_CALLER_ID},
+        )
+        if quote_resp.status_code >= 400:
+            return {"ok": False, "error": f"Topup quote failed {quote_resp.status_code}: {quote_resp.text[:200]}"}
+
+        quote = quote_resp.json()
+        topup_src_amount = quote.get("fromTokenAmount", "0")
+        if topup_src_amount == "0":
+            return {"ok": False, "error": "Topup quote returned zero fromTokenAmount"}
+
+        # Submit Fusion same-chain swap: src_token → native
+        submit_resp = proxied_post(
+            f"{FUSION_SAME_CHAIN_BASE}/relayer/v2.0/{chain_id}/order/submit",
+            json={
+                "fromTokenAddress": src_token,
+                "toTokenAddress": NATIVE_TOKEN,
+                "amount": topup_src_amount,
+                "walletAddress": wallet,
+                "quoteId": quote.get("quoteId", ""),
+            },
+            headers={"SC-CALLER-ID": SC_CALLER_ID},
+        )
+
+        if submit_resp.status_code >= 400:
+            return {
+                "ok": False,
+                "error": (
+                    f"Auto-topup submit failed ({submit_resp.status_code}). "
+                    f"Please manually add native token to {chain_name} wallet. "
+                    f"Required: ~{required_wei / 1e18:.8f} native tokens."
+                ),
+            }
+
+        topup_order_hash = submit_resp.json().get("orderHash", "")
+        logger.info(f"Topup order submitted: {topup_order_hash}. Waiting for fill...")
+
+        # Poll up to 120s for topup to complete
+        start = time.time()
+        while time.time() - start < 120:
+            time.sleep(POLL_INTERVAL)
+            bal = _get_native_balance_wei(chain_id, wallet)
+            if bal >= required_wei:
+                logger.info(f"Topup confirmed. New balance: {bal} wei")
+                return {"ok": True, "topup": True, "topup_amount_wei": topup_wei, "topup_order": topup_order_hash}
+
+        return {
+            "ok": False,
+            "error": (
+                f"Topup order {topup_order_hash} submitted but native balance not updated within 120s. "
+                f"Use oneinch_cross_chain_status('{topup_order_hash}') to check topup status."
+            ),
+        }
+
+    except Exception as e:
+        return {
+            "ok": False,
+            "error": (
+                f"Auto-topup failed: {e}. "
+                f"Please manually add ~{required_wei / 1e18:.8f} native tokens to {chain_name} wallet."
+            ),
+        }
 
 
 # ── Read-Only Tools ──────────────────────────────────────────────────────────
@@ -308,6 +436,28 @@ Returns: order hash, final status, amounts"""
             dst_amount_est = quote.get("dstTokenAmount", "")
             preset_info = quote.get("presets", {}).get(preset, quote.get("presets", {}).get("medium", {}))
             secrets_count = preset_info.get("secretsCount", 1)
+
+            # 1b. safetyDeposit check + auto-topup
+            src_safety_deposit = int(quote.get("srcSafetyDeposit", "0") or "0")
+            if src_safety_deposit > 0:
+                topup_result = _ensure_native_for_safety_deposit(
+                    chain_id=src_chain_id,
+                    chain_name=src_chain,
+                    wallet=wallet_address,
+                    src_token=src_token,
+                    required_wei=src_safety_deposit,
+                )
+                if not topup_result["ok"]:
+                    return ToolResult(
+                        success=False,
+                        error=(
+                            f"Fusion+ cross-chain requires {src_safety_deposit / 1e18:.8f} native tokens "
+                            f"as safetyDeposit on {src_chain}. Auto-topup failed: {topup_result['error']}"
+                        ),
+                        output={"src_safety_deposit_wei": src_safety_deposit, "topup_result": topup_result},
+                    )
+                if topup_result.get("topup"):
+                    logger.info(f"Auto-topup completed: {topup_result}")
 
             # 2. Generate secrets
             secrets = _generate_secrets(secrets_count)
