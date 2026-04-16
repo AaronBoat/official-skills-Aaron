@@ -1,6 +1,6 @@
 ---
 name: slide-creator
-version: 2.1.2
+version: 2.1.4
 description: "Create presentation slide decks as HTML and auto-export to 16:9 PDF. Use when the user asks to make a PPT, slide deck, presentation, or pitch deck. Final output is a PDF file — not PowerPoint format."
 
 metadata:
@@ -206,6 +206,44 @@ Only restart art direction if user wants a completely different style.
 - **Emoji rendering**: headless Chromium may lack emoji fonts — use SVG icons instead
 - **Large images**: embed as base64 or use relative paths (local server serves the project dir)
 - **Slide overflow**: content exceeding 720px height is clipped — design within bounds
+- **⚠️ PDF text not selectable (verified 2026)**: `filter` / `backdrop-filter` CSS on any ancestor containing text causes Chromium to rasterize that layer to bitmap during PDF export — all child text becomes pixels, not selectable. Fix: NEVER apply `filter`/`backdrop-filter` to containers holding text. Only apply to empty decorative `<div>` elements (e.g. `.blur-layer`, `.glow-overlay`) with no text children. Same rule applies to `mix-blend-mode` on text parents. **Pre-export checklist**: search HTML for `filter`/`backdrop-filter` on non-decorative elements and strip them.
+- **⚠️ Footer / source attribution — use standard component + strict bottom-safe-area contract (verified 2026)**: ad-hoc footer markup causes inconsistent positioning across slides. Always use this `.slide-footer` pattern for all source citations, page numbers, and disclaimers.
+  
+  **Hard layout contract (do not skip):**
+  - Every non-cover slide must have a dedicated content wrapper (e.g. `.slide-body`) that reserves footer space.
+  - **Hard rule:** `.slide-body` must reserve footer space with bottom-safe-area `>= 96px` (default 96px). Example: `.slide-body { padding: 52px 72px 96px; }`.
+  - Footer must be outside normal flow: `position: absolute; bottom: 24px`, as a sibling of `.slide-body` directly under `.slide`.
+  - Never place source/disclaimer text inside `.slide-body`.
+  - Cover page can be exception only when it has no `.slide-footer`.
+
+  This enforces physical separation: body content area ends above a reserved footer lane, and footer stays in the canvas-bottom lane, so they never overlap regardless of content density.
+  ```html
+  <footer class="slide-footer">
+    <span class="footer-source">Source: CoinGecko · Coinglass · DefiLlama</span>
+    <span class="footer-page">03 / 12</span>
+  </footer>
+  ```
+  ```css
+  .slide-footer {
+    position: absolute;
+    bottom: 24px; left: 48px; right: 48px;
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 11px; color: rgba(255,255,255,0.35);
+    border-top: 1px solid rgba(255,255,255,0.08);
+    padding-top: 8px;
+    z-index: 2;
+  }
+  .slide > *:not(.bg-glow):not(.slide-footer) {
+    position: relative;
+    z-index: 1;
+  }
+  .slide-body { padding-bottom: 96px; }
+  ```
+  Never use in-flow / `position: relative` footers — they shift when slide content height changes. Also exclude `.slide-footer` from generic `.slide > *` stacking rules, or CSS order can accidentally override footer layering.
+  **Validation checklist (required before export):**
+  1) every non-cover slide has `.slide-body` and `.slide-footer` as siblings;
+  2) `.slide-body` bottom padding is `>=96px`;
+  3) source/disclaimer text appears only inside `.slide-footer`, never in body containers.
 - **⚠️ z-index / decorative overlay bug (verified 2026)**: `.bg-glow` and other decorative pseudo-layers MUST be positioned with `z-index: 0` and all real slide content given `z-index: 1` explicitly. If `.bg-glow` is a sibling of `.slide > *` (not a `::before`/`::after` pseudo-element), add this rule to ensure content is never visually buried:
   ```css
   .slide > *:not(.bg-glow) { position: relative; z-index: 1; }
