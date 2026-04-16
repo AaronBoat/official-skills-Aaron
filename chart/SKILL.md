@@ -1,6 +1,6 @@
 ---
 name: chart
-version: 3.0.0
+version: 3.0.1
 description: Interactive web-based charts for data analysis and business intelligence. Project-based output in output/chart-html/<project>/ with HTML + script + data + screenshot.
 
 metadata:
@@ -97,6 +97,11 @@ preview_serve(
 ```
 
 Then open: `/preview/<id>/<project-name>/index.html`
+
+Important behavior in v3.0.1:
+- `chart_server.py` now rewrites preview-prefixed static paths internally (`/preview/<id>/...` → `/...`) before filesystem lookup.
+- This guarantees the preview iframe resolves the real project `index.html` instead of falling back to root directory listing.
+- Keep project pages under `output/chart-html/<project>/index.html` (do not serve `output/chart-html` directly as a static preview without `chart_server.py`).
 
 ### Step 6: Export image
 

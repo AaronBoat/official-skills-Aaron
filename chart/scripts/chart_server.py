@@ -24,6 +24,7 @@ import json
 import base64
 import re
 from pathlib import Path
+from urllib.parse import urlsplit
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 
 WORKSPACE = Path("/data/workspace")
@@ -55,6 +56,25 @@ class ChartHandler(SimpleHTTPRequestHandler):
         if m:
             p = '/' + m.group(1)
         return p
+
+    def _translate_preview_path(self, raw_path: str) -> str:
+        """Map /preview/<id>/<project>/... to /<project>/... before static lookup."""
+        # keep query string when present
+        split = urlsplit(raw_path)
+        p = split.path
+        m = re.match(r"^/preview/[^/]+/(.*)$", p)
+        if m:
+            mapped = '/' + m.group(1)
+        else:
+            mapped = p
+        if split.query:
+            mapped = f"{mapped}?{split.query}"
+        return mapped
+
+    def translate_path(self, path):
+        # SimpleHTTPRequestHandler resolves filesystem paths via this method.
+        # We normalize preview-prefixed URLs first so static files map correctly.
+        return super().translate_path(self._translate_preview_path(path))
 
     def do_OPTIONS(self):
         self.send_response(200)
