@@ -206,3 +206,9 @@ Only restart art direction if user wants a completely different style.
 - **Emoji rendering**: headless Chromium may lack emoji fonts — use SVG icons instead
 - **Large images**: embed as base64 or use relative paths (local server serves the project dir)
 - **Slide overflow**: content exceeding 720px height is clipped — design within bounds
+- **⚠️ z-index / decorative overlay bug (verified 2026)**: `.bg-glow` and other decorative pseudo-layers MUST be positioned with `z-index: 0` and all real slide content given `z-index: 1` explicitly. If `.bg-glow` is a sibling of `.slide > *` (not a `::before`/`::after` pseudo-element), add this rule to ensure content is never visually buried:
+  ```css
+  .slide > *:not(.bg-glow) { position: relative; z-index: 1; }
+  .bg-glow { position: absolute; z-index: 0; pointer-events: none; }
+  ```
+  Failure mode: PDF exports show content pushed to the bottom or invisible, even though browser preview looks fine (browser compositing handles z-order more forgivingly than Chromium's print path).
