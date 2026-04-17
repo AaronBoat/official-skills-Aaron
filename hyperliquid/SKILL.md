@@ -1,6 +1,6 @@
 ---
 name: hyperliquid
-version: 1.1.1
+version: 1.1.2
 description: Trade perpetual futures and spot on Hyperliquid DEX
 tools:
   - hl_account
@@ -38,6 +38,59 @@ Trade perpetual futures and spot tokens on Hyperliquid, a fully on-chain decentr
 ## Prerequisites
 
 Before trading, the wallet policy must be active. Load the **wallet-policy** skill and propose the standard wildcard policy (deny key export + allow `*`). This covers all Hyperliquid operations — USDC deposits, EIP-712 order signing, and withdrawals.
+
+## Runtime Model: Agent Tools vs Service Scripts (Important)
+
+Hyperliquid has **two execution modes**. Use the right one for your workflow:
+
+### 1) Agent tool mode (chat/task runtime)
+
+Use `hl_*` tools directly in agent conversations and task scripts that run inside the Starchild tool runtime.
+
+- Best for: human-in-the-loop operations, ad-hoc trades, monitoring flows, orchestration across multiple skills
+- Strength: fastest integration with built-in verification workflow (`check → execute → verify`)
+- Limitation: `hl_*` tools are tool-runtime capabilities, **not normal Python imports**
+
+### 2) Service script mode (FastAPI/worker/bot process)
+
+For standalone services (FastAPI bots, daemons, web backends), call Hyperliquid directly via the bundled client:
+
+- Use `skills/hyperliquid/client.py` (`HyperliquidClient`)
+- This is the recommended path for always-on bots (grid/maker/rebalancer) that should not depend on localhost agent-chat bridging
+- `hl_*` tools are not importable as `from ... import hl_order` in plain Python services
+
+### Service Integration Pattern (recommended)
+
+1. Keep strategy/state machine in your own service process (FastAPI, worker loop, queue consumer)
+2. Use `HyperliquidClient` for `order`, `cancel`, `open orders`, `fills`, `account`
+3. Persist bot state locally (orders, fills cursor, grid map, PnL)
+4. Build admin APIs (`/start`, `/stop`, `/status`, `/history`) around that state
+
+### Minimal service example (direct client)
+
+```python
+from skills.hyperliquid.client import HyperliquidClient
+
+client = HyperliquidClient()
+address = await client._get_address()  # wallet address used for read endpoints
+
+# Query
+account = await client.get_account_state(address)
+opens = await client.get_open_orders(address)
+fills = await client.get_user_fills(address)
+
+# Place order (example)
+res = await client.place_order(
+    coin="BTC",
+    is_buy=True,
+    size=0.001,
+    price=95000,
+    order_type="limit",
+)
+
+# Cancel all BTC orders
+await client.cancel_all("BTC")
+```
 
 ## Available Tools
 
@@ -192,6 +245,8 @@ hl_order(coin="BTC", side="buy", size=0.01, price=94000, order_type="alo")
 ```
 
 ALO (Add Liquidity Only) = post-only. Rejected if it would immediately fill.
+
+**Practical guardrail for bots:** If your ALO price is too close to mid (often within ~0.1% on liquid pairs), Hyperliquid may reject it. For market-making/grid bots, compute current mid first and skip or shift levels that sit inside your no-cross buffer zone.
 
 ### Place a Stop Loss Order
 
@@ -442,6 +497,20 @@ Agent workflow:
 1. `hl_account()` → Get current position size
 2. `hl_order(coin="BTC", side="sell", size=X, reduce_only=true)` → Close position
 3. `hl_fills()` → Report PnL
+
+### Grid / Market-Making Bot Loop (service mode)
+
+For always-on bots running inside FastAPI/worker services:
+
+1. Read open orders via `get_open_orders(address)`
+2. Read fills via `get_user_fills(address)`
+3. Use **fills as source of truth** for "order executed" events
+4. On fill:
+   - buy fill → place paired sell at next grid level
+   - sell fill → place paired buy at previous grid level
+5. Keep periodic reconciliation: local state vs exchange open orders
+
+**Important:** Do not treat "order disappeared from open orders" as guaranteed fill. It can also mean cancel/reject/expired. Always confirm with `get_user_fills` (or `get_order_status` when needed).
 
 ### Spot Trading
 
