@@ -9,6 +9,7 @@ Exchange tools (10): hl_order, hl_spot_order, hl_cancel, hl_cancel_all,
 """
 
 import time
+import math
 import logging
 
 from core.tool import BaseTool, ToolContext, ToolResult
@@ -30,6 +31,69 @@ def _get_client() -> HyperliquidClient:
 async def _get_address() -> str:
     """Get the agent's EVM address."""
     return await _get_client()._get_address()
+
+
+def _coerce_float(value, field_name: str):
+    """Best-effort numeric coercion for tolerant tool inputs."""
+    if isinstance(value, bool) or value is None:
+        raise ValueError(f"'{field_name}' must be a number")
+    if isinstance(value, (int, float)):
+        f = float(value)
+    elif isinstance(value, str):
+        s = value.strip()
+        if not s:
+            raise ValueError(f"'{field_name}' must be a number")
+        try:
+            f = float(s)
+        except ValueError:
+            raise ValueError(f"'{field_name}' must be a number")
+    else:
+        raise ValueError(f"'{field_name}' must be a number")
+
+    if not math.isfinite(f):
+        raise ValueError(f"'{field_name}' must be a finite number")
+    return f
+
+
+def _coerce_int(value, field_name: str):
+    """Best-effort integer coercion with strict decimal rejection."""
+    if isinstance(value, bool) or value is None:
+        raise ValueError(f"'{field_name}' must be an integer")
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float):
+        if value.is_integer() and math.isfinite(value):
+            return int(value)
+        raise ValueError(f"'{field_name}' must be an integer")
+    if isinstance(value, str):
+        s = value.strip()
+        if not s:
+            raise ValueError(f"'{field_name}' must be an integer")
+        if s.lstrip("+-").isdigit():
+            return int(s)
+        # allow "5.0" but reject "5.1"
+        try:
+            f = float(s)
+            if math.isfinite(f) and f.is_integer():
+                return int(f)
+        except ValueError:
+            pass
+    raise ValueError(f"'{field_name}' must be an integer")
+
+
+def _coerce_bool(value, field_name: str):
+    """Best-effort boolean coercion."""
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)) and value in (0, 1):
+        return bool(value)
+    if isinstance(value, str):
+        lowered = value.strip().lower()
+        if lowered in {"true", "1", "yes", "y", "on"}:
+            return True
+        if lowered in {"false", "0", "no", "n", "off"}:
+            return False
+    raise ValueError(f"'{field_name}' must be a boolean")
 
 
 # ── Info Tools ───────────────────────────────────────────────────────────────
@@ -685,11 +749,26 @@ Returns: order status with oid, filled size, price"""
         reduce_only: bool = False,
         **kwargs,
     ) -> ToolResult:
-        if not coin or not side or not size:
-            return ToolResult(
-                success=False, error="'coin', 'side', and 'size' are required"
-            )
         try:
+            if not coin or not side:
+                return ToolResult(success=False, error="'coin' and 'side' are required")
+
+            size = _coerce_float(size, "size")
+            if size <= 0:
+                return ToolResult(success=False, error="'size' must be positive")
+
+            if price is not None:
+                price = _coerce_float(price, "price")
+                if price <= 0:
+                    return ToolResult(success=False, error="'price' must be positive when provided")
+
+            reduce_only = _coerce_bool(reduce_only, "reduce_only")
+
+            if isinstance(order_type, str):
+                order_type = order_type.strip().lower() or "limit"
+            if order_type not in {"limit", "ioc", "alo"}:
+                return ToolResult(success=False, error="'order_type' must be one of: limit, ioc, alo")
+
             client = _get_client()
             is_buy = side.lower() == "buy"
             data = await client.place_order(
@@ -701,6 +780,8 @@ Returns: order status with oid, filled size, price"""
                 reduce_only=reduce_only,
             )
             return ToolResult(success=True, output=data)
+        except ValueError as e:
+            return ToolResult(success=False, error=str(e))
         except Exception as e:
             return ToolResult(success=False, error=str(e))
 
@@ -768,11 +849,24 @@ Returns: order status with oid, filled size, price"""
         order_type: str = "limit",
         **kwargs,
     ) -> ToolResult:
-        if not coin or not side or not size:
-            return ToolResult(
-                success=False, error="'coin', 'side', and 'size' are required"
-            )
         try:
+            if not coin or not side:
+                return ToolResult(success=False, error="'coin' and 'side' are required")
+
+            size = _coerce_float(size, "size")
+            if size <= 0:
+                return ToolResult(success=False, error="'size' must be positive")
+
+            if price is not None:
+                price = _coerce_float(price, "price")
+                if price <= 0:
+                    return ToolResult(success=False, error="'price' must be positive when provided")
+
+            if isinstance(order_type, str):
+                order_type = order_type.strip().lower() or "limit"
+            if order_type not in {"limit", "ioc", "alo"}:
+                return ToolResult(success=False, error="'order_type' must be one of: limit, ioc, alo")
+
             client = _get_client()
             is_buy = side.lower() == "buy"
             data = await client.place_order(
@@ -784,6 +878,8 @@ Returns: order status with oid, filled size, price"""
                 is_spot=True,
             )
             return ToolResult(success=True, output=data)
+        except ValueError as e:
+            return ToolResult(success=False, error=str(e))
         except Exception as e:
             return ToolResult(success=False, error=str(e))
 
@@ -885,17 +981,36 @@ Returns: order status with oid, trigger details"""
         reduce_only: bool = True,
         **kwargs,
     ) -> ToolResult:
-        if not coin or not side or not size or not trigger_px or not tpsl:
-            return ToolResult(
-                success=False,
-                error="'coin', 'side', 'size', 'trigger_px', and 'tpsl' are required",
-            )
-        if tpsl not in ("tp", "sl"):
-            return ToolResult(
-                success=False,
-                error="'tpsl' must be either 'tp' (take profit) or 'sl' (stop loss)",
-            )
         try:
+            if not coin or not side or not tpsl:
+                return ToolResult(
+                    success=False,
+                    error="'coin', 'side', and 'tpsl' are required",
+                )
+
+            size = _coerce_float(size, "size")
+            trigger_px = _coerce_float(trigger_px, "trigger_px")
+            if size <= 0:
+                return ToolResult(success=False, error="'size' must be positive")
+            if trigger_px <= 0:
+                return ToolResult(success=False, error="'trigger_px' must be positive")
+
+            is_market = _coerce_bool(is_market, "is_market")
+            reduce_only = _coerce_bool(reduce_only, "reduce_only")
+
+            if isinstance(tpsl, str):
+                tpsl = tpsl.strip().lower()
+            if tpsl not in ("tp", "sl"):
+                return ToolResult(
+                    success=False,
+                    error="'tpsl' must be either 'tp' (take profit) or 'sl' (stop loss)",
+                )
+
+            if limit_px is not None:
+                limit_px = _coerce_float(limit_px, "limit_px")
+                if limit_px <= 0:
+                    return ToolResult(success=False, error="'limit_px' must be positive when provided")
+
             client = _get_client()
             is_buy = side.lower() == "buy"
 
@@ -914,6 +1029,8 @@ Returns: order status with oid, trigger details"""
                 tpsl=tpsl,
             )
             return ToolResult(success=True, output=data)
+        except ValueError as e:
+            return ToolResult(success=False, error=str(e))
         except Exception as e:
             return ToolResult(success=False, error=str(e))
 
@@ -955,14 +1072,19 @@ Returns: cancel confirmation"""
     async def execute(
         self, ctx: ToolContext, coin: str = "", order_id: int = 0, **kwargs
     ) -> ToolResult:
-        if not coin or not order_id:
-            return ToolResult(
-                success=False, error="'coin' and 'order_id' are required"
-            )
         try:
+            if not coin:
+                return ToolResult(success=False, error="'coin' is required")
+
+            order_id = _coerce_int(order_id, "order_id")
+            if order_id <= 0:
+                return ToolResult(success=False, error="'order_id' must be positive")
+
             client = _get_client()
             data = await client.cancel_order(coin, order_id)
             return ToolResult(success=True, output=data)
+        except ValueError as e:
+            return ToolResult(success=False, error=str(e))
         except Exception as e:
             return ToolResult(success=False, error=str(e))
 
@@ -1070,12 +1192,23 @@ Returns: modified order confirmation"""
         price: float = 0,
         **kwargs,
     ) -> ToolResult:
-        if not order_id or not coin or not side or not size or not price:
-            return ToolResult(
-                success=False,
-                error="All parameters required: order_id, coin, side, size, price",
-            )
         try:
+            if not coin or not side:
+                return ToolResult(
+                    success=False,
+                    error="'coin' and 'side' are required",
+                )
+
+            order_id = _coerce_int(order_id, "order_id")
+            size = _coerce_float(size, "size")
+            price = _coerce_float(price, "price")
+            if order_id <= 0:
+                return ToolResult(success=False, error="'order_id' must be positive")
+            if size <= 0:
+                return ToolResult(success=False, error="'size' must be positive")
+            if price <= 0:
+                return ToolResult(success=False, error="'price' must be positive")
+
             client = _get_client()
             is_buy = side.lower() == "buy"
             data = await client.modify_order(
@@ -1086,6 +1219,8 @@ Returns: modified order confirmation"""
                 price=price,
             )
             return ToolResult(success=True, output=data)
+        except ValueError as e:
+            return ToolResult(success=False, error=str(e))
         except Exception as e:
             return ToolResult(success=False, error=str(e))
 
@@ -1137,17 +1272,23 @@ Returns: leverage update confirmation"""
         cross: bool = True,
         **kwargs,
     ) -> ToolResult:
-        if not coin or not leverage:
-            return ToolResult(
-                success=False, error="'coin' and 'leverage' are required"
-            )
         try:
+            if not coin:
+                return ToolResult(success=False, error="'coin' is required")
+
+            leverage = _coerce_int(leverage, "leverage")
+            cross = _coerce_bool(cross, "cross")
+            if leverage <= 0:
+                return ToolResult(success=False, error="'leverage' must be positive")
+
             client = _get_client()
             # Builder perps (HIP-3) require isolated margin
             if ":" in coin:
                 cross = False
             data = await client.update_leverage(coin, leverage, is_cross=cross)
             return ToolResult(success=True, output=data)
+        except ValueError as e:
+            return ToolResult(success=False, error=str(e))
         except Exception as e:
             return ToolResult(success=False, error=str(e))
 
@@ -1201,12 +1342,17 @@ Returns: transfer confirmation"""
     async def execute(
         self, ctx: ToolContext, amount: float = 0, to_perp: bool = True, **kwargs
     ) -> ToolResult:
-        if not amount or amount <= 0:
-            return ToolResult(success=False, error="'amount' must be positive")
         try:
+            amount = _coerce_float(amount, "amount")
+            to_perp = _coerce_bool(to_perp, "to_perp")
+            if amount <= 0:
+                return ToolResult(success=False, error="'amount' must be positive")
+
             client = _get_client()
             data = await client.transfer_usd(amount, to_perp=to_perp)
             return ToolResult(success=True, output=data)
+        except ValueError as e:
+            return ToolResult(success=False, error=str(e))
         except Exception as e:
             return ToolResult(success=False, error=str(e))
 
@@ -1250,14 +1396,18 @@ Returns: withdrawal confirmation"""
     async def execute(
         self, ctx: ToolContext, amount: float = 0, destination: str = "", **kwargs
     ) -> ToolResult:
-        if not amount or amount <= 0:
-            return ToolResult(success=False, error="'amount' must be positive")
         try:
+            amount = _coerce_float(amount, "amount")
+            if amount <= 0:
+                return ToolResult(success=False, error="'amount' must be positive")
+
             client = _get_client()
             data = await client.withdraw_from_bridge(
                 amount, destination=destination or None
             )
             return ToolResult(success=True, output=data)
+        except ValueError as e:
+            return ToolResult(success=False, error=str(e))
         except Exception as e:
             return ToolResult(success=False, error=str(e))
 
@@ -1297,17 +1447,21 @@ Returns: approve_tx_hash, transfer_tx_hash, amount_deposited"""
     async def execute(
         self, ctx: ToolContext, amount: float = 0, **kwargs
     ) -> ToolResult:
-        if not amount or amount <= 0:
-            return ToolResult(success=False, error="'amount' must be positive")
-        if amount < 5:
-            return ToolResult(
-                success=False,
-                error="Minimum Hyperliquid deposit is 5 USDC",
-            )
         try:
+            amount = _coerce_float(amount, "amount")
+            if amount <= 0:
+                return ToolResult(success=False, error="'amount' must be positive")
+            if amount < 5:
+                return ToolResult(
+                    success=False,
+                    error="Minimum Hyperliquid deposit is 5 USDC",
+                )
+
             client = _get_client()
             data = await client.deposit_usdc(amount)
             return ToolResult(success=True, output=data)
+        except ValueError as e:
+            return ToolResult(success=False, error=str(e))
         except Exception as e:
             return ToolResult(success=False, error=str(e))
 

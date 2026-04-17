@@ -1,6 +1,6 @@
 ---
 name: hyperliquid
-version: 1.1.2
+version: 1.2.0
 description: Trade perpetual futures and spot on Hyperliquid DEX
 tools:
   - hl_account
@@ -237,6 +237,14 @@ hl_order(coin="ETH", side="sell", size=0.1)
 ```
 
 Omitting `price` submits an IoC order at mid price +/- 3% slippage.
+
+**Parameter format behavior:**
+- Preferred: pass correct JSON types (`size` as number, `reduce_only` as boolean)
+- Hyperliquid tools now include tolerant coercion for common LLM formatting mistakes:
+  - numeric strings like `"0.01"` → `0.01`
+  - boolean strings like `"true"/"false"` → `true/false`
+  - integer strings like `"5"`/`"5.0"` → `5`
+- Invalid/empty/non-finite values still fail with explicit validation errors
 
 ### Place a Post-Only Order
 
