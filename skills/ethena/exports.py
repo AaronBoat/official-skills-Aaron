@@ -19,8 +19,8 @@ from core.http_client import proxied_get, proxied_post  # noqa: E402
 RPC_URL   = "https://ethereum.publicnode.com"
 SUSDE     = "0x9D39A5DE30e57443BfF2A8307A4256c8797A3497"
 USDE      = "0x4c9EDD5852cd905f086C759E8383e09bff1E68B3"
-DEFILLAMA_POOL      = "66985a81-4b3f-417b-8e53-b6e9cee0d83a"
-DEFILLAMA_CHART_URL = "https://yields.llama.fi/chart/66985a81-4b3f-417b-8e53-b6e9cee0d83a"
+DEFILLAMA_POOL      = "66985a81-9c51-46ca-9977-42b4fe7bc6df"
+DEFILLAMA_CHART_URL = "https://yields.llama.fi/chart/66985a81-9c51-46ca-9977-42b4fe7bc6df"
 DEFILLAMA_POOLS_URL = "https://yields.llama.fi/pools"
 CALLER_ID = "chat:ethena-skill"
 
@@ -122,10 +122,11 @@ def ethena_apy() -> dict:
         if pool:
             return {
                 "apy_current": round(pool.get("apy", 0), 4),
-                "apy_7d": pool.get("apy7d"),
-                "apy_30d": pool.get("apy30d"),
+                "apy_7d": None,          # not available in pools endpoint
+                "apy_30d": round(pool.get("apyMean30d"), 4) if pool.get("apyMean30d") else None,
                 "tvl_usd": pool.get("tvlUsd"),
                 "pool_id": pool.get("pool"),
+                "source": "fallback:pools",
             }
         return {"error": "Could not fetch APY data from DefiLlama"}
 
