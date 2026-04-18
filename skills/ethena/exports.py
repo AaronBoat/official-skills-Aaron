@@ -19,7 +19,9 @@ from core.http_client import proxied_get, proxied_post  # noqa: E402
 RPC_URL   = "https://ethereum.publicnode.com"
 SUSDE     = "0x9D39A5DE30e57443BfF2A8307A4256c8797A3497"
 USDE      = "0x4c9EDD5852cd905f086C759E8383e09bff1E68B3"
-DEFILLAMA_POOL = "66985a81-4b3f-417b-8e53-b6e9cee0d83a"
+DEFILLAMA_POOL      = "66985a81-4b3f-417b-8e53-b6e9cee0d83a"
+DEFILLAMA_CHART_URL = "https://yields.llama.fi/chart/66985a81-4b3f-417b-8e53-b6e9cee0d83a"
+DEFILLAMA_POOLS_URL = "https://yields.llama.fi/pools"
 CALLER_ID = "chat:ethena-skill"
 
 # Function selectors (keccak256 verified)
@@ -102,14 +104,14 @@ def ethena_apy() -> dict:
         pool_id (str): DefiLlama pool identifier
     """
     resp = proxied_get(
-        f"https://yields.llama.fi/chart/{DEFILLAMA_POOL}",
+        DEFILLAMA_CHART_URL,
         headers={"SC-CALLER-ID": CALLER_ID}, timeout=15
     )
     data = resp.json().get("data", [])
 
     if not data:
         # Fallback: search pools list
-        resp2 = proxied_get("https://yields.llama.fi/pools",
+        resp2 = proxied_get(DEFILLAMA_POOLS_URL,
                              headers={"SC-CALLER-ID": CALLER_ID}, timeout=15)
         pools = resp2.json().get("data", [])
         pool = next((p for p in pools if p.get("pool") == DEFILLAMA_POOL), None)
