@@ -8,17 +8,15 @@ All tools use wallet_transfer (Starchild native) for on-chain tx broadcast.
 No Fly Machine dependency. Works in any Starchild container.
 """
 
+import asyncio
 import logging
-import os
+import sys
 from typing import Dict
 
 from core.tool import BaseTool, ToolContext, ToolResult
 from .client import OneInchClient, NATIVE_TOKEN, resolve_chain
 
 logger = logging.getLogger(__name__)
-
-# Agent wallet address — set once at startup
-AGENT_ADDRESS = os.environ.get("AGENT_EVM_ADDRESS", "")
 
 # Cache of clients per chain_id
 _clients: Dict[int, OneInchClient] = {}
@@ -32,14 +30,21 @@ def _get_client(chain: str) -> OneInchClient:
 
 
 def _get_address() -> str:
-    """Get agent EVM address from env."""
-    addr = AGENT_ADDRESS or os.environ.get("AGENT_EVM_ADDRESS", "")
-    if not addr:
-        raise RuntimeError(
-            "AGENT_EVM_ADDRESS not configured. "
-            "Starchild sets this automatically for internal wallets."
-        )
-    return addr
+    """Get agent EVM address from platform wallet API (no env var needed)."""
+    try:
+        sys.path.insert(0, '/app')
+        from tools.wallet import _wallet_request
+        data = asyncio.run(_wallet_request("GET", "/agent/wallet"))
+        wallets = data if isinstance(data, list) else data.get("wallets", [])
+        for w in wallets:
+            if w.get("chain_type") == "ethereum":
+                return w["wallet_address"]
+    except Exception as e:
+        logger.warning(f"_get_address: wallet API failed — {e}")
+    raise RuntimeError(
+        "Unable to retrieve EVM wallet address from platform. "
+        "Ensure the agent has a wallet configured."
+    )
 
 
 # ── Read-Only Tools ──────────────────────────────────────────────────────────
@@ -84,8 +89,11 @@ Returns: dstAmount (estimated output in wei), gas estimate, route protocols"""
         if not all([chain, src, dst, amount]):
             return ToolResult(success=False, error="chain, src, dst, amount are all required")
         try:
-            data = _get_client(chain).get_quote(src, dst, amount)
+            data = await _get_client(chain).get_quote(src, dst, amount)
             return ToolResult(success=True, output=data)
+        except ValueError as e:
+            # Sanity check failures (e.g. BSC AMM overflow) surface as clear user-facing errors
+            return ToolResult(success=False, error=str(e))
         except Exception as e:
             return ToolResult(success=False, error=str(e))
 
@@ -124,7 +132,7 @@ Returns: [{address, symbol, name, decimals}] (max 20 results)"""
         if not chain:
             return ToolResult(success=False, error="'chain' is required")
         try:
-            data = _get_client(chain).get_tokens()
+            data = await _get_client(chain).get_tokens()
             token_map = data.get("tokens", data) if isinstance(data, dict) else data
             tokens = list(token_map.values()) if isinstance(token_map, dict) else token_map
             if search:
@@ -173,7 +181,7 @@ Returns: allowance amount, needs_approval (bool)"""
             return ToolResult(success=True, output={"allowance": "unlimited", "needs_approval": False, "note": "Native ETH does not need approval"})
         try:
             address = _get_address()
-            data = _get_client(chain).get_allowance(token_address, address)
+            data = await _get_client(chain).get_allowance(token_address, address)
             allowance = data.get("allowance", "0")
             return ToolResult(success=True, output={"allowance": allowance, "needs_approval": allowance == "0", "token": token_address, "wallet": address})
         except Exception as e:
@@ -223,7 +231,7 @@ Returns: transaction hash"""
             from tools.wallet import wallet_transfer_sync
 
             client = _get_client(chain)
-            tx_data = client.get_approve_transaction(token_address, amount=amount if amount else None)
+            tx_data = await client.get_approve_transaction(token_address, amount=amount if amount else None)
 
             # Broadcast via Starchild wallet_transfer (no Fly Machine required)
             result = wallet_transfer_sync(
@@ -288,7 +296,7 @@ Returns: transaction hash, estimated output amount"""
             client = _get_client(chain)
             address = _get_address()
 
-            swap_data = client.get_swap(src, dst, amount, address, slippage)
+            swap_data = await client.get_swap(src, dst, amount, address, slippage)
             tx = swap_data.get("tx", {})
             if not tx:
                 return ToolResult(success=False, error="1inch API returned no transaction data")
