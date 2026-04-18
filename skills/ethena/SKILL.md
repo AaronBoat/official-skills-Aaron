@@ -1,6 +1,6 @@
 ---
 name: ethena
-version: 1.1.0
+version: 1.2.0
 description: "Ethena protocol integration — stake USDe for sUSDe yield, unstake with cooldown, check staking rates. Use when user mentions Ethena, USDe, sUSDe, or wants stablecoin yield."
 
 metadata:
@@ -18,6 +18,7 @@ user-invocable: true
 - **NEVER** hardcode cooldown as "7 days" — actual value is fetched per request (currently ~24h)
 - **NEVER** guess or assume the sUSDe/USDe exchange rate — call `ethena_rate`
 - **HARD LIMIT**: max 5 tool calls per user request
+- **ON-CHAIN EXECUTION**: after `ethena_*` returns calldata, sign and broadcast via `wallet_sign_transaction` — NEVER skip or simulate
 
 ---
 
@@ -43,6 +44,50 @@ Ethena lets users stake USDe to receive sUSDe, an ERC4626 yield-bearing token. R
 | `ethena_stake(amount, receiver)` | Stake USDe | 2 tx calldata (approve + deposit) |
 | `ethena_cooldown_start(amount)` | Start unstake | cooldown tx calldata + live cooldown_hours |
 | `ethena_unstake(receiver)` | Claim after cooldown | unstake tx calldata |
+
+## End-to-End Execution — Sign & Broadcast
+
+`ethena_*` tools return **unsigned calldata**. To actually execute on-chain:
+
+```
+ethena_stake / ethena_cooldown_start / ethena_unstake
+        ↓  returns tx dict  {to, data, value, chain_id}
+wallet_sign_transaction(tx)          ← wallet skill
+        ↓  returns signed_tx hex
+wallet_sign_transaction broadcast    ← same call, auto-broadcasts
+```
+
+### Standard Flow (stake example)
+
+```
+Step 1  ethena_rate()                    # confirm rate + cooldown before tx
+Step 2  ethena_stake("100", receiver)    # returns [approve_tx, deposit_tx]
+Step 3  wallet_sign_transaction(approve_tx, broadcast=True)
+Step 4  wallet_sign_transaction(deposit_tx, broadcast=True)
+```
+
+### Standard Flow (unstake)
+
+```
+Step 1  ethena_rate()                    # get live cooldown duration
+Step 2  ethena_cooldown_start("100")     # returns cooldown_tx
+Step 3  wallet_sign_transaction(cooldown_tx, broadcast=True)
+Step 4  [wait cooldown_hours]
+Step 5  ethena_unstake(receiver)         # returns unstake_tx
+Step 6  wallet_sign_transaction(unstake_tx, broadcast=True)
+```
+
+### Cross-skill dependency
+
+Load **wallet-policy** skill first to confirm wildcard policy is active. `wallet_sign_transaction` is part of the **wallet** skill — it is available natively; no extra install needed.
+
+### Error handling
+
+| Error | Cause | Fix |
+|-------|-------|-----|
+| 403 on sign | Privy policy deny-all | Approve wildcard policy in Web UI |
+| nonce conflict | Two txs broadcast too fast | Wait for Step 3 receipt before Step 4 |
+| gas estimate fail | Approve not mined yet | Add 5s delay between approve and deposit |
 
 ## Tool Routing — IF/THEN
 
@@ -100,6 +145,27 @@ ethena_stake("100", receiver="0x...")
 → [{approve tx}, {deposit tx}]  # execute in order
 ```
 
+**ETH-04b — Stake end-to-end (sign & broadcast)**
+> "帮我质押 100 USDe，直接执行到链上"
+```
+ethena_rate()                                   # Step 1: confirm rate
+ethena_stake("100", receiver="0x...")           # Step 2: get calldata
+→ [approve_tx, deposit_tx]
+wallet_sign_transaction(approve_tx, broadcast=True)   # Step 3
+wallet_sign_transaction(deposit_tx, broadcast=True)   # Step 4
+→ tx_hash confirmed
+```
+
+**ETH-06b — Unstake end-to-end (sign & broadcast)**
+> "帮我开始赎回 50 sUSDe，直接发链上"
+```
+ethena_rate()                                         # Step 1: get cooldown
+ethena_cooldown_start("50")                           # Step 2: get calldata
+→ {cooldown_tx, cooldown_hours: 24.0}
+wallet_sign_transaction(cooldown_tx, broadcast=True)  # Step 3
+→ tx_hash confirmed, 等待 24h 后再调 ethena_unstake
+```
+
 **ETH-05 — Cooldown duration**
 > "赎回要等多久？"
 ```
@@ -135,6 +201,8 @@ ethena_apy()
 3. **Unstake**: `ethena_cooldown_start` → wait cooldown (query live, currently ~24h) → `ethena_unstake`
 
 sUSDe/USDe rate only goes up. Cooldown duration may change — always query `ethena_rate`.
+
+After generating calldata via any `ethena_*` tool, **always follow up with `wallet_sign_transaction(tx, broadcast=True)`** to actually submit on-chain. Never stop at calldata generation.
 
 ## Prerequisites — Wallet Policy
 
