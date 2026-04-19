@@ -1,0 +1,43 @@
+{
+  "round": 2,
+  "timestamp": "2025-07-11T",
+  "environment": "remote-agent-2181",
+  "wallet": "4iRWgJq6nxH1gQasKGyprAb6sEmjt2MFVYC1NunS8VvY",
+  "test": "E2E limit order create + sign + broadcast",
+  "steps": {
+    "1_create_order": {
+      "endpoint": "POST https://lite-api.jup.ag/trigger/v1/createOrder",
+      "http_status": 200,
+      "order_pubkey": "HyTLjYma9khxCabDQFNKnAoZgFcNk7sFQYXYh421Gjg3",
+      "request_id": "a6173473-cae1-4249-aa97-8b398ea0c349",
+      "params": {
+        "inputMint": "So11111111111111111111111111111111111111112",
+        "outputMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+        "makingAmount": "50000000",
+        "takingAmount": "5100000",
+        "implied_price_usdc_per_sol": 102
+      },
+      "status": "PASS"
+    },
+    "2_sign": {
+      "method": "wallet_sol_sign (Privy)",
+      "signed_tx_length": 904,
+      "status": "PASS"
+    },
+    "3_broadcast": {
+      "endpoint": "POST https://lite-api.jup.ag/trigger/v1/execute",
+      "http_status": 200,
+      "signature": "23AKxP7LMu8zuR5pcWAQ6FjHsZAVpWbbLU6QcY8v6w46e5JqSH6j7wdzv7yPQkqa13bR81Wh4MHqV4UDToi4xdzf",
+      "jupiter_status": "Success",
+      "order": "HyTLjYma9khxCabDQFNKnAoZgFcNk7sFQYXYh421Gjg3",
+      "status": "PASS"
+    }
+  },
+  "verify_urls": {
+    "solscan_tx": "https://solscan.io/tx/23AKxP7LMu8zuR5pcWAQ6FjHsZAVpWbbLU6QcY8v6w46e5JqSH6j7wdzv7yPQkqa13bR81Wh4MHqV4UDToi4xdzf",
+    "solscan_order": "https://solscan.io/account/HyTLjYma9khxCabDQFNKnAoZgFcNk7sFQYXYh421Gjg3",
+    "jupiter_limit": "https://jup.ag/limit"
+  },
+  "overall": "3/3 PASS",
+  "note": "Real SOL asset broadcast. Order sits at 102 USDC/SOL (above market), will fill when SOL reaches that price."
+}
