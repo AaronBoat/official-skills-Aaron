@@ -1,0 +1,67 @@
+{
+  "skill": "jupiter",
+  "version": "1.1.0",
+  "timestamp": 1776572181,
+  "results": [
+    {
+      "id": "OC-01",
+      "desc": "Ultra quote requestId",
+      "evidence_type": "Jupiter RequestID",
+      "evidence_id": "019da3f4-2b72-71fa-bbe7-e1ddc426138d",
+      "verify_url": "https://lite-api.jup.ag/ultra/v1/order?inputMint=So11111111111111111111111111111111111111112&outputMint=EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v&amount=1000000000",
+      "status": "PASS",
+      "detail": "1 SOL → 85.8647 USDC ($85.86)",
+      "ts": 1776572181
+    },
+    {
+      "id": "OC-02",
+      "desc": "Solana 主网当前 slot",
+      "evidence_type": "Solana Slot",
+      "evidence_id": "414181246",
+      "verify_url": "https://solscan.io/block/414181246",
+      "status": "PASS",
+      "detail": "slot=414181246",
+      "ts": 1776572181
+    },
+    {
+      "id": "OC-03",
+      "desc": "公开钱包余额快照",
+      "evidence_type": "Solana Account",
+      "evidence_id": "GYpJcE6BHXaTPpamkH4ky65C2LoCwXHpBHivKExsxzS3",
+      "verify_url": "https://solscan.io/account/GYpJcE6BHXaTPpamkH4ky65C2LoCwXHpBHivKExsxzS3",
+      "status": "PASS",
+      "detail": "0.000000 SOL (0 lamports)",
+      "ts": 1776572181
+    },
+    {
+      "id": "OC-04",
+      "desc": "限价单创建 → order pubkey + tx sha256",
+      "evidence_type": "Jupiter Order PubKey",
+      "evidence_id": "31Rx2fs2TWHNWXFDiFLqhRmcZfq2GWgsxdLvBR1NUhB6",
+      "verify_url": "https://solscan.io/account/31Rx2fs2TWHNWXFDiFLqhRmcZfq2GWgsxdLvBR1NUhB6",
+      "status": "PASS",
+      "detail": "code=0 requestId=c6eed0b8-6e36-4b54-9e2f- order=31Rx2fs2TWHNWXFDiFLqhRmcZfq2GWgsxdLvBR1NUhB6 tx_sha256=f9f1f214fcf2cf77363847ddcfcef3d4 tx_bytes=646",
+      "ts": 1776572181
+    },
+    {
+      "id": "OC-05",
+      "desc": "链上挂单列表",
+      "evidence_type": "Jupiter Open Orders",
+      "evidence_id": "0 orders",
+      "verify_url": "https://solscan.io/account/GYpJcE6BHXaTPpamkH4ky65C2LoCwXHpBHivKExsxzS3#tokenAccounts",
+      "status": "PASS",
+      "detail": "count=0",
+      "ts": 1776572181
+    },
+    {
+      "id": "OC-06",
+      "desc": "TX sha256 字节真实性",
+      "evidence_type": "TX SHA256",
+      "evidence_id": "f9f1f214fcf2cf77363847ddcfcef3d4",
+      "verify_url": "广播后可在 Solscan 搜 signature",
+      "status": "PASS",
+      "detail": "sha256=f9f1f214fcf2cf77363847ddcfcef3d4 size=646 bytes",
+      "ts": 1776572181
+    }
+  ]
+}
