@@ -1,6 +1,6 @@
 ---
 name: jupiter
-version: 1.1.1
+version: 1.1.2
 description: "Jupiter DEX aggregator on Solana — token swaps, limit orders, DCA. Use when user mentions Jupiter, Solana swap, SOL/USDC swap, or Solana DEX aggregator."
 
 metadata:
@@ -110,13 +110,22 @@ IF token not in KNOWN_TOKENS               → ask user for mint address
 ## Swap Workflow (End-to-End)
 
 ```
-1. jupiter_quote(input, output, amount)          ← ultra/v1/order
+1. jupiter_quote(input, output, amount)          ← 仅用于展示报价，不用其中的 tx
 2. Show user: out_amount, in_usd, out_usd, price_impact_pct, slippage
 3. Wait for confirmation
-4. wallet_sol_sign_transaction(tx=quote["transaction"])
-5. POST /ultra/v1/execute { signedTransaction, requestId }
-6. wallet_sol_balance()                           ← verify
+4. jupiter_swap(input, output, amount, wallet)   ← ⚠️ 重新调用拿新 tx
+                                                    blockhash 有效期仅 ~60s
+                                                    quote→confirm 流程必然超时
+                                                    绝对不能复用 step 1 的 transaction
+5. wallet_sol_sign_transaction(tx=swap["transaction"])
+6. POST /ultra/v1/execute { signedTransaction, requestId }
+7. wallet_sol_balance()                           ← verify
 ```
+
+> ⚠️ **slippage 警告**：ultra API 默认 slippage = 0.5%（50 bps）。
+> 大额 swap（>$500）或行情波动期请显式传 `slippage_bps=100`（1%），
+> 否则触发 **Error 6010 MinReturnNotReached**，交易直接失败。
+> 示例：`jupiter_swap("SOL", "USDC", 1.0, wallet, slippage_bps=100)`
 
 ## Limit Order Workflow (End-to-End)
 
